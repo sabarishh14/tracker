@@ -6,6 +6,9 @@ import os
 from datetime import datetime, date
 import json
 import requests
+import hashlib # <-- NEW
+import csv     # <-- NEW
+import io      # <-- NEW
 
 app = Flask(__name__)
 CORS(app)
@@ -54,12 +57,25 @@ class Investment(db.Model):
     __tablename__ = "investments"
 
     id = db.Column(db.BigInteger, primary_key=True)
-    date = db.Column(db.Date, nullable=False)
-    inv_mf = db.Column(db.Float, nullable=False)
-    curr_mf = db.Column(db.Float, nullable=False)
-    ret_amount = db.Column(db.Float, nullable=False)
-    ret_pct = db.Column(db.Float, nullable=False)
-    status = db.Column(db.String(5))
+    date = db.Column(db.Date, nullable=False, index=True)
+    
+    # Stocks
+    inv_stocks = db.Column(db.Float, default=0.0)
+    curr_stocks = db.Column(db.Float, default=0.0)
+    ret_pct_stocks = db.Column(db.Float, default=0.0)
+    status_stocks = db.Column(db.String(10))
+    
+    # Mutual Funds
+    inv_mf = db.Column(db.Float, default=0.0)
+    curr_mf = db.Column(db.Float, default=0.0)
+    ret_pct_mf = db.Column(db.Float, default=0.0)
+    status_mf = db.Column(db.String(10))
+    
+    # Totals
+    total_inv = db.Column(db.Float, default=0.0)
+    total_curr = db.Column(db.Float, default=0.0)
+    total_ret_pct = db.Column(db.Float, default=0.0)
+    total_status = db.Column(db.String(10))
 
 class SyncLog(db.Model):
     __tablename__ = "sync_log"
@@ -377,17 +393,149 @@ def get_investments():
         {
             "id": r.id,
             "date": r.date.strftime("%Y-%m-%d"),
+            "inv_stocks": r.inv_stocks,
+            "curr_stocks": r.curr_stocks,
+            "ret_pct_stocks": r.ret_pct_stocks,
+            "status_stocks": r.status_stocks,
             "inv_mf": r.inv_mf,
             "curr_mf": r.curr_mf,
-            "ret_amount": r.ret_amount,
-            "ret_pct": r.ret_pct,
-            "status": r.status
+            "ret_pct_mf": r.ret_pct_mf,
+            "status_mf": r.status_mf,
+            "total_inv": r.total_inv,
+            "total_curr": r.total_curr,
+            "total_ret_pct": r.total_ret_pct,
+            "total_status": r.total_status
         }
         for r in records
     ]
 
     return jsonify(result)
 
+@app.route('/api/investments', methods=['POST'])
+def add_investment():
+    data = request.json
+    date_obj = datetime.strptime(data['date'], '%Y-%m-%d')
+
+    new_record = Investment(
+        id=int(datetime.now().timestamp() * 1000),
+        date=date_obj,
+        inv_stocks=float(data.get('inv_stocks', 0)),
+        curr_stocks=float(data.get('curr_stocks', 0)),
+        ret_pct_stocks=float(data.get('ret_pct_stocks', 0)),
+        status_stocks=data.get('status_stocks', ''),
+        inv_mf=float(data.get('inv_mf', 0)),
+        curr_mf=float(data.get('curr_mf', 0)),
+        ret_pct_mf=float(data.get('ret_pct_mf', 0)),
+        status_mf=data.get('status_mf', ''),
+        total_inv=float(data.get('total_inv', 0)),
+        total_curr=float(data.get('total_curr', 0)),
+        total_ret_pct=float(data.get('total_ret_pct', 0)),
+        total_status=data.get('total_status', '')
+    )
+
+    db.session.add(new_record)
+    db.session.commit()
+
+    return jsonify({"success": True})
+
+@app.route('/api/sync/kite', methods=['POST'])
+def sync_kite_direct():
+    print("🔄 Starting direct Kite sync...")
+    data = request.json
+    request_token = data.get('request_token')
+    
+    if not request_token:
+        return jsonify({"success": False, "message": "Request token is required for Kite API"})
+
+    API_KEY = "6gcxnf0qycaphw5k"
+    API_SECRET = "80h6ufr05f28bbl5ewxdfzezilanjwtn"
+
+    try:
+        today_date = datetime.now().date()
+        
+        # 1. Check if already synced today to prevent duplicates
+        if Investment.query.filter_by(date=today_date).first():
+            return jsonify({"success": False, "message": f"Already synced investments for {today_date.strftime('%d/%m/%Y')}!"})
+
+        # 2. Generate Checksum & Get Access Token
+        raw = API_KEY + request_token + API_SECRET
+        checksum = hashlib.sha256(raw.encode('utf-8')).hexdigest()
+
+        token_res = requests.post("https://api.kite.trade/session/token", data={
+            "api_key": API_KEY,
+            "request_token": request_token,
+            "checksum": checksum
+        })
+        
+        token_data = token_res.json()
+        if token_data.get('status') != 'success':
+            return jsonify({"success": False, "message": "Kite Auth Failed. Is your Request Token valid for today?"})
+        
+        access_token = token_data['data']['access_token']
+        print("✅ Access token generated")
+
+        # 3. Fetch Holdings
+        headers = {"Authorization": f"token {API_KEY}:{access_token}"}
+        holdings_res = requests.get("https://api.kite.trade/mf/holdings", headers=headers)
+        holdings_data = holdings_res.json().get('data', [])
+        
+        if not holdings_data:
+            return jsonify({"success": False, "message": "No MF holdings found in Kite."})
+        print(f"✅ Fetched {len(holdings_data)} holdings")
+
+        # 4. Fetch Instruments (for latest NAV)
+        instruments_res = requests.get("https://api.kite.trade/mf/instruments")
+        
+        # Parse the CSV string into a dictionary: { "tradingsymbol": last_price }
+        reader = csv.DictReader(io.StringIO(instruments_res.text))
+        mf_nav_data = {}
+        for row in reader:
+            if row.get('last_price') and row.get('tradingsymbol'):
+                mf_nav_data[row['tradingsymbol']] = float(row['last_price'])
+        print("✅ Parsed instruments CSV")
+
+        # 5. Calculate Totals (Replicating your Apps Script logic)
+        total_inv = 0.0
+        total_curr = 0.0
+
+        for h in holdings_data:
+            symbol = h['tradingsymbol']
+            qty = float(h['quantity'])
+            avg_price = float(h['average_price'])
+            
+            nav = mf_nav_data.get(symbol)
+            if not nav:
+                continue
+            
+            total_inv += (qty * avg_price)
+            total_curr += (qty * nav)
+
+        # 6. Calculate Returns and Status
+        ret_pct = ((total_curr - total_inv) / total_inv * 100) if total_inv > 0 else 0
+        
+        prev = Investment.query.filter(Investment.date < today_date).order_by(Investment.date.desc()).first()
+        status = "📈" if not prev or ret_pct >= prev.ret_pct_mf else "📉"
+
+        # 7. Save to Database
+        new_inv = Investment(
+            id=int(datetime.now().timestamp() * 1000),
+            date=today_date,
+            inv_stocks=0.0, curr_stocks=0.0, ret_pct_stocks=0.0, status_stocks="—",
+            inv_mf=total_inv, curr_mf=total_curr, ret_pct_mf=ret_pct, status_mf=status,
+            total_inv=total_inv, total_curr=total_curr, total_ret_pct=ret_pct, total_status=status
+        )
+        db.session.add(new_inv)
+        db.session.commit()
+
+        print(f"✅ Synced to DB! Inv: {total_inv}, Curr: {total_curr}")
+        return jsonify({"success": True, "message": f"Successfully synced from Kite!"})
+
+    except Exception as e:
+        print(f"❌ Kite Sync Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "message": str(e)})
+    
 @app.route('/api/sync/sheets', methods=['POST'])
 def sync_from_sheets():
     print("🔄 Sync request received from frontend")
@@ -533,38 +681,6 @@ def sync_from_sheets():
             "success": False,
             "message": str(e)
         })
-
-@app.route('/api/investments', methods=['POST'])
-def add_investment():
-    data = request.json
-
-    date_obj = datetime.strptime(data['date'], '%Y-%m-%d')
-
-    prev = Investment.query.order_by(Investment.date.desc()).first()
-
-    status = "📈"
-    if prev:
-        status = "📈" if float(data['ret_pct']) >= prev.ret_pct else "📉"
-
-    inv_mf = float(data['inv_mf'])
-    curr_mf = float(data['curr_mf'])
-    ret_amount = curr_mf - inv_mf
-    ret_pct = float(data['ret_pct'])
-
-    new_record = Investment(
-        id=int(datetime.now().timestamp() * 1000),
-        date=date_obj,
-        inv_mf=inv_mf,
-        curr_mf=curr_mf,
-        ret_amount=ret_amount,
-        ret_pct=ret_pct,
-        status=status
-    )
-
-    db.session.add(new_record)
-    db.session.commit()
-
-    return jsonify({"success": True})
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

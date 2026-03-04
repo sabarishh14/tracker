@@ -1136,8 +1136,181 @@ function MoneyTab({ accounts, transactions }) {
   );
 }
 
-// ─── ADD TAB ───────────────────────────────────────────────────────────
-function AddTab({ accounts, onAdd }) {
+// // ─── ADD TAB ───────────────────────────────────────────────────────────
+// function AddTab({ accounts, onAdd }) {
+//   const today = new Date().toISOString().split('T')[0];
+//   const [form, setForm] = useState({ account:'KOTAK', date:today, type:'debit', heading:'Food', description:'', amount:'' });
+//   const [loading, setLoading] = useState(false);
+//   const [success, setSuccess] = useState(false);
+//   const [categorySearch, setCategorySearch] = useState('');
+//   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+//   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+//   const filteredCategories = CATEGORIES.filter(c => 
+//     c.toLowerCase().includes(categorySearch.toLowerCase())
+//   );
+
+//   const handleCategorySelect = (category) => {
+//     set('heading', category);
+//     setCategorySearch('');
+//     setShowCategoryDropdown(false);
+//   };
+
+// const submit = async () => {
+//   if (!form.amount || isNaN(form.amount)) return alert("Enter a valid amount");
+//   setLoading(true);
+//   try {
+//     const payload = {
+//       date: form.date,
+//       type: form.type,
+//       heading: form.heading,
+//       description: form.description || "",
+//       amount: parseFloat(form.amount),
+//       account: form.account,
+//     };
+
+//     const res = await fetch(`${API}/transactions`, {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify(payload),
+//     });
+
+//     if (res.ok) {
+//       // Update localStorage balance based on transaction type
+//       const storedBalances = getStoredBalances() || {};
+//       const currentBalance = storedBalances[form.account] || 0;
+//       const amount = parseFloat(form.amount);
+      
+//       let newBalance = currentBalance;
+//       if (form.type === 'debit') {
+//         newBalance = currentBalance - amount;
+//       } else if (form.type === 'credit') {
+//         newBalance = currentBalance + amount;
+//       } else if (form.type === 'savings') {
+//         newBalance = currentBalance - amount;
+//       }
+      
+//       updateStoredBalance(form.account, newBalance);
+//       onAdd(); // Refresh accounts state from localStorage/API
+      
+//       setSuccess(true);
+//       setForm({ account: 'KOTAK', date: today, type: 'debit', heading: 'Food', description: '', amount: '' });
+//       setCategorySearch('');
+//       setShowCategoryDropdown(false);
+//       setTimeout(() => setSuccess(false), 2500);
+//     } else {
+//       alert("Failed to save transaction.");
+//     }
+//   } catch (e) {
+//     alert("Network error: " + e.message);
+//   } finally {
+//     setLoading(false);
+//   }
+// };
+
+//   const monthLabel = form.date ? new Date(form.date).toLocaleString('default',{month:'long',year:'numeric'}) : '';
+//   const amtNum = parseFloat(form.amount) || 0;
+
+//   return (
+//     <div className="add-layout">
+//       <div className="add-form-card">
+//         <div className="form-row">
+//           <div className="form-group">
+//             <label>Account</label>
+//             <select className="sel" value={form.account} onChange={e => set('account', e.target.value)}>
+//               {Object.keys(BANKS).map(b => <option key={b} value={b}>{BANKS[b].emoji} {b}</option>)}
+//             </select>
+//           </div>
+//           <div className="form-group">
+//             <label>Date</label>
+//             <input type="date" className="inp" value={form.date} onChange={e => set('date', e.target.value)} />
+//           </div>
+//         </div>
+
+//         <div className="form-group">
+//           <label>Month (auto from date)</label>
+//           <input className="inp" readOnly value={monthLabel} style={{opacity:0.6,cursor:'not-allowed'}} />
+//         </div>
+
+//         <div className="form-group">
+//           <label>Transaction Type</label>
+//           <div className="type-btns">
+//             {[['debit','🔴 Debit'],['credit','🟢 Credit'],['savings','💰 Savings']].map(([t,l]) => (
+//               <button key={t} className={`type-btn ${form.type === t ? 'active-'+t : ''}`} onClick={() => set('type', t)}>{l}</button>
+//             ))}
+//           </div>
+//         </div>
+
+//         <div className="form-row">
+//           <div className="form-group" style={{ position: 'relative' }}>
+//             <label>Category</label>
+//             <input 
+//               type="text" 
+//               className="inp" 
+//               placeholder="Search or type category..."
+//               value={showCategoryDropdown ? categorySearch : form.heading}
+//               onChange={e => {
+//                 setCategorySearch(e.target.value);
+//                 setShowCategoryDropdown(true);
+//               }}
+//               onFocus={() => {
+//                 setCategorySearch('');
+//                 setShowCategoryDropdown(true);
+//               }}
+//               onBlur={() => setTimeout(() => setShowCategoryDropdown(false), 200)}
+//             />
+//             {showCategoryDropdown && filteredCategories.length > 0 && (
+//               <div className="category-dropdown">
+//                 {filteredCategories.map(cat => (
+//                   <div
+//                     key={cat}
+//                     className="category-option"
+//                     onClick={() => handleCategorySelect(cat)}
+//                   >
+//                     {cat}
+//                   </div>
+//                 ))}
+//               </div>
+//             )}
+//           </div>
+//           <div className="form-group">
+//             <label>Amount (₹)</label>
+//             <input className="inp" type="number" placeholder="0.00" value={form.amount} onChange={e => set('amount', e.target.value)} />
+//           </div>
+//         </div>
+
+//         <div className="form-group">
+//           <label>Description (optional)</label>
+//           <input className="inp" placeholder="Add a note..." value={form.description} onChange={e => set('description', e.target.value)} />
+//         </div>
+
+//         <button className={`submit-btn ${success ? 'success' : ''}`} onClick={submit} disabled={loading}>
+//           {loading ? "Saving..." : success ? "✅ Transaction Saved!" : "Save Transaction"}
+//         </button>
+//       </div>
+
+//       {/* Preview Panel */}
+//       <div className="preview-panel">
+//         <div className="preview-title">Transaction Preview</div>
+//         <div className="preview-item"><span className="pk">Account</span><span className="pv">{BANKS[form.account]?.emoji} {form.account}</span></div>
+//         <div className="preview-item"><span className="pk">Date</span><span className="pv">{form.date ? formatDate(form.date) : '—'}</span></div>
+//         <div className="preview-item"><span className="pk">Month</span><span className="pv">{monthLabel || '—'}</span></div>
+//         <div className="preview-item"><span className="pk">Type</span><span className="pv" style={{textTransform:'capitalize'}}>{form.type}</span></div>
+//         <div className="preview-item"><span className="pk">Category</span><span className="pv">{form.heading}</span></div>
+//         {form.description && <div className="preview-item"><span className="pk">Note</span><span className="pv">{form.description}</span></div>}
+//         <div className={`preview-amount-pill ${form.type}`}>
+//           <div className="pill-label">Amount</div>
+//           <div className={`pill-amount ${form.type === 'debit' ? 'neg' : form.type === 'credit' ? 'pos' : 'accent'}`}>
+//             {form.type === 'debit' ? '−' : '+'}{fmt(amtNum)}
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
+
+// ─── ADD TRANSACTION MODAL ─────────────────────────────────────────────
+function AddTransactionModal({ accounts, onAdd, onClose }) {
   const today = new Date().toISOString().split('T')[0];
   const [form, setForm] = useState({ account:'KOTAK', date:today, type:'debit', heading:'Food', description:'', amount:'' });
   const [loading, setLoading] = useState(false);
@@ -1156,152 +1329,109 @@ function AddTab({ accounts, onAdd }) {
     setShowCategoryDropdown(false);
   };
 
-const submit = async () => {
-  if (!form.amount || isNaN(form.amount)) return alert("Enter a valid amount");
-  setLoading(true);
-  try {
-    const payload = {
-      date: form.date,
-      type: form.type,
-      heading: form.heading,
-      description: form.description || "",
-      amount: parseFloat(form.amount),
-      account: form.account,
-    };
+  const submit = async () => {
+    if (!form.amount || isNaN(form.amount)) return alert("Enter a valid amount");
+    setLoading(true);
+    try {
+      const payload = {
+        date: form.date, type: form.type, heading: form.heading,
+        description: form.description || "", amount: parseFloat(form.amount), account: form.account,
+      };
 
-    const res = await fetch(`${API}/transactions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+      const res = await fetch(`${API}/transactions`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+      });
 
-    if (res.ok) {
-      // Update localStorage balance based on transaction type
-      const storedBalances = getStoredBalances() || {};
-      const currentBalance = storedBalances[form.account] || 0;
-      const amount = parseFloat(form.amount);
-      
-      let newBalance = currentBalance;
-      if (form.type === 'debit') {
-        newBalance = currentBalance - amount;
-      } else if (form.type === 'credit') {
-        newBalance = currentBalance + amount;
-      } else if (form.type === 'savings') {
-        newBalance = currentBalance - amount;
+      if (res.ok) {
+        const storedBalances = getStoredBalances() || {};
+        const currentBalance = storedBalances[form.account] || 0;
+        const amount = parseFloat(form.amount);
+        let newBalance = currentBalance;
+        if (form.type === 'debit' || form.type === 'savings') newBalance = currentBalance - amount;
+        else if (form.type === 'credit') newBalance = currentBalance + amount;
+        
+        updateStoredBalance(form.account, newBalance);
+        onAdd(); 
+        setSuccess(true);
+        // Close modal automatically after 1.5s
+        setTimeout(() => {
+          setSuccess(false);
+          onClose();
+        }, 1500);
+      } else {
+        alert("Failed to save transaction.");
       }
-      
-      updateStoredBalance(form.account, newBalance);
-      onAdd(); // Refresh accounts state from localStorage/API
-      
-      setSuccess(true);
-      setForm({ account: 'KOTAK', date: today, type: 'debit', heading: 'Food', description: '', amount: '' });
-      setCategorySearch('');
-      setShowCategoryDropdown(false);
-      setTimeout(() => setSuccess(false), 2500);
-    } else {
-      alert("Failed to save transaction.");
+    } catch (e) {
+      alert("Network error: " + e.message);
+    } finally {
+      setLoading(false);
     }
-  } catch (e) {
-    alert("Network error: " + e.message);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const monthLabel = form.date ? new Date(form.date).toLocaleString('default',{month:'long',year:'numeric'}) : '';
-  const amtNum = parseFloat(form.amount) || 0;
 
   return (
-    <div className="add-layout">
-      <div className="add-form-card">
-        <div className="form-row">
-          <div className="form-group">
-            <label>Account</label>
-            <select className="sel" value={form.account} onChange={e => set('account', e.target.value)}>
-              {Object.keys(BANKS).map(b => <option key={b} value={b}>{BANKS[b].emoji} {b}</option>)}
-            </select>
-          </div>
-          <div className="form-group">
-            <label>Date</label>
-            <input type="date" className="inp" value={form.date} onChange={e => set('date', e.target.value)} />
-          </div>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-content" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-title">➕ Add Transaction</div>
+          <button className="modal-close" onClick={onClose}>×</button>
         </div>
+        <div className="modal-body">
+          <div className="add-form-card" style={{ border: 'none', padding: 0, minWidth: 'auto', background: 'transparent' }}>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Account</label>
+                <select className="sel" value={form.account} onChange={e => set('account', e.target.value)}>
+                  {Object.keys(BANKS).map(b => <option key={b} value={b}>{BANKS[b].emoji} {b}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Date</label>
+                <input type="date" className="inp" value={form.date} onChange={e => set('date', e.target.value)} />
+              </div>
+            </div>
 
-        <div className="form-group">
-          <label>Month (auto from date)</label>
-          <input className="inp" readOnly value={monthLabel} style={{opacity:0.6,cursor:'not-allowed'}} />
-        </div>
-
-        <div className="form-group">
-          <label>Transaction Type</label>
-          <div className="type-btns">
-            {[['debit','🔴 Debit'],['credit','🟢 Credit'],['savings','💰 Savings']].map(([t,l]) => (
-              <button key={t} className={`type-btn ${form.type === t ? 'active-'+t : ''}`} onClick={() => set('type', t)}>{l}</button>
-            ))}
-          </div>
-        </div>
-
-        <div className="form-row">
-          <div className="form-group" style={{ position: 'relative' }}>
-            <label>Category</label>
-            <input 
-              type="text" 
-              className="inp" 
-              placeholder="Search or type category..."
-              value={showCategoryDropdown ? categorySearch : form.heading}
-              onChange={e => {
-                setCategorySearch(e.target.value);
-                setShowCategoryDropdown(true);
-              }}
-              onFocus={() => {
-                setCategorySearch('');
-                setShowCategoryDropdown(true);
-              }}
-              onBlur={() => setTimeout(() => setShowCategoryDropdown(false), 200)}
-            />
-            {showCategoryDropdown && filteredCategories.length > 0 && (
-              <div className="category-dropdown">
-                {filteredCategories.map(cat => (
-                  <div
-                    key={cat}
-                    className="category-option"
-                    onClick={() => handleCategorySelect(cat)}
-                  >
-                    {cat}
-                  </div>
+            <div className="form-group">
+              <label>Transaction Type</label>
+              <div className="type-btns">
+                {[['debit','🔴 Debit'],['credit','🟢 Credit'],['savings','💰 Savings']].map(([t,l]) => (
+                  <button key={t} className={`type-btn ${form.type === t ? 'active-'+t : ''}`} onClick={() => set('type', t)}>{l}</button>
                 ))}
               </div>
-            )}
-          </div>
-          <div className="form-group">
-            <label>Amount (₹)</label>
-            <input className="inp" type="number" placeholder="0.00" value={form.amount} onChange={e => set('amount', e.target.value)} />
-          </div>
-        </div>
+            </div>
 
-        <div className="form-group">
-          <label>Description (optional)</label>
-          <input className="inp" placeholder="Add a note..." value={form.description} onChange={e => set('description', e.target.value)} />
-        </div>
+            <div className="form-row">
+              <div className="form-group" style={{ position: 'relative' }}>
+                <label>Category</label>
+                <input type="text" className="inp" placeholder="Search..."
+                  value={showCategoryDropdown ? categorySearch : form.heading}
+                  onChange={e => { setCategorySearch(e.target.value); setShowCategoryDropdown(true); }}
+                  onFocus={() => { setCategorySearch(''); setShowCategoryDropdown(true); }}
+                  onBlur={() => setTimeout(() => setShowCategoryDropdown(false), 200)}
+                />
+                {showCategoryDropdown && filteredCategories.length > 0 && (
+                  <div className="category-dropdown">
+                    {filteredCategories.map(cat => (
+                      <div key={cat} className="category-option" onClick={() => handleCategorySelect(cat)}>{cat}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="form-group">
+                <label>Amount (₹)</label>
+                <input className="inp" type="number" placeholder="0.00" value={form.amount} onChange={e => set('amount', e.target.value)} />
+              </div>
+            </div>
 
-        <button className={`submit-btn ${success ? 'success' : ''}`} onClick={submit} disabled={loading}>
-          {loading ? "Saving..." : success ? "✅ Transaction Saved!" : "Save Transaction"}
-        </button>
-      </div>
+            <div className="form-group">
+              <label>Description (optional)</label>
+              <input className="inp" placeholder="Add a note..." value={form.description} onChange={e => set('description', e.target.value)} />
+            </div>
 
-      {/* Preview Panel */}
-      <div className="preview-panel">
-        <div className="preview-title">Transaction Preview</div>
-        <div className="preview-item"><span className="pk">Account</span><span className="pv">{BANKS[form.account]?.emoji} {form.account}</span></div>
-        <div className="preview-item"><span className="pk">Date</span><span className="pv">{form.date ? formatDate(form.date) : '—'}</span></div>
-        <div className="preview-item"><span className="pk">Month</span><span className="pv">{monthLabel || '—'}</span></div>
-        <div className="preview-item"><span className="pk">Type</span><span className="pv" style={{textTransform:'capitalize'}}>{form.type}</span></div>
-        <div className="preview-item"><span className="pk">Category</span><span className="pv">{form.heading}</span></div>
-        {form.description && <div className="preview-item"><span className="pk">Note</span><span className="pv">{form.description}</span></div>}
-        <div className={`preview-amount-pill ${form.type}`}>
-          <div className="pill-label">Amount</div>
-          <div className={`pill-amount ${form.type === 'debit' ? 'neg' : form.type === 'credit' ? 'pos' : 'accent'}`}>
-            {form.type === 'debit' ? '−' : '+'}{fmt(amtNum)}
+            <button className={`submit-btn ${success ? 'success' : ''}`} onClick={submit} disabled={loading} style={{ marginTop: '0.5rem' }}>
+              {loading ? "Saving..." : success ? "✅ Saved!" : "Save Transaction"}
+            </button>
           </div>
         </div>
       </div>
@@ -1490,7 +1620,7 @@ export default function App() {
   const [physical, setPhysical] = useState([]);
   const [investments, setInvestments] = useState([]);
   const [allTransactionsLoaded, setAllTransactionsLoaded] = useState(false);
-
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false); // <-- ADD THIS LINE  
   // --- Sidebar Resizing Logic ---
   const [sidebarWidth, setSidebarWidth] = useState(250);
   const [isResizing, setIsResizing] = useState(false);
@@ -1750,7 +1880,7 @@ const importCSV = useCallback((csvText) => {
             <button
               key={t.id}
               className={`nav-item ${tab === t.id ? 'active' : ''} ${t.add ? 'add-item' : ''}`}
-              onClick={() => setTab(t.id)}
+              onClick={() => t.add ? setIsAddModalOpen(true) : setTab(t.id)}
               title={sidebarMinimized ? t.label : ''}
               style={{ 
                 justifyContent: sidebarMinimized ? 'center' : (t.add ? 'center' : 'flex-start'),
@@ -1857,6 +1987,15 @@ const importCSV = useCallback((csvText) => {
           {renderTab()}
         </main>
       </div>
+
+      {/* Floating Add Transaction Modal */}
+      {isAddModalOpen && (
+        <AddTransactionModal 
+          accounts={accounts} 
+          onAdd={fetchAll} 
+          onClose={() => setIsAddModalOpen(false)} 
+        />
+      )}
     </div>
   );
 }

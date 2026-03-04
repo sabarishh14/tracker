@@ -542,3 +542,29 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cur
   .form-row { grid-template-columns: 1fr; }
   .topbar { padding: 0 1.25rem; }
 }
+/* ── FLOATING MODAL ─── */
+.modal-backdrop {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; animation: fadeIn 0.2s ease;
+}
+.modal-content {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); width: 90%; max-width: 480px;
+  position: relative; animation: slideUp 0.3s ease;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+}
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border);
+}
+.modal-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.1rem; }
+.modal-close {
+  background: none; border: none; color: var(--text2); font-size: 1.5rem;
+  cursor: pointer; transition: color 0.2s; line-height: 1; padding: 0 0.5rem;
+}
+.modal-close:hover { color: var(--neg); }
+.modal-body { padding: 1.5rem; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }

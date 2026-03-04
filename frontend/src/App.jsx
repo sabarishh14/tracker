@@ -175,12 +175,16 @@ function HomeTab({ accounts, transactions, physical, investments, onSyncBalances
   };
 
   const netWorth = accounts
-  .filter(a => a.balance_tracked) // only accounts that track balance
-  .reduce((s, a) => s + parseFloat(a.balance || 0), 0);  const latestInv = investments.length ? investments[investments.length - 1] : null;
-  const totalInvested = latestInv ? parseFloat(latestInv.inv_mf) : 0;
-  const totalCurrent = latestInv ? parseFloat(latestInv.curr_mf) : 0;
+    .filter(a => a.balance_tracked)
+    .reduce((s, a) => s + parseFloat(a.balance || 0), 0);
+
+  // Grab the newest snapshot (index 0) and use your new total columns
+  const latestInv = investments.length > 0 ? investments[0] : null;
+  const latestDate = latestInv ? formatDate(latestInv.date) : "—";
+  const totalInvested = latestInv ? parseFloat(latestInv.total_inv || 0) : 0;
+  const totalCurrent = latestInv ? parseFloat(latestInv.total_curr || 0) : 0;
   const totalReturn = totalCurrent - totalInvested;
-  const totalRetPct = totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
+  const totalRetPct = latestInv ? parseFloat(latestInv.total_ret_pct || 0) : 0;
 
   const physActive = physical.filter(p => {
     const d = new Date(p.date);
@@ -333,7 +337,8 @@ function HomeTab({ accounts, transactions, physical, investments, onSyncBalances
         <h2 className="section-title">📊 Investment Portfolio</h2>
         <div className="inv-summary-grid">
           {[
-            { label: "Invested (MF)", val: fmt(totalInvested), color: null },
+            { label: "Date", val: latestDate, color: "text3" },
+            { label: "Invested", val: fmt(totalInvested), color: null },
             { label: "Current Value", val: fmt(totalCurrent), color: null },
             { label: "Returns ₹", val: fmt(totalReturn), color: totalReturn >= 0 ? "pos" : "neg" },
             { label: "Returns %", val: fmtPct(totalRetPct), color: totalRetPct >= 0 ? "pos" : "neg" },
@@ -1517,95 +1522,222 @@ function GymTab({ physical, onAdd }) {
 
 // ─── INVEST TAB ───────────────────────────────────────────────────────────
 function InvestTab({ investments, onAdd }) {
-  const sundays = getSundays();
-  const [form, setForm] = useState({
-    date: sundays[0] ? sundays[0].toISOString().split('T')[0] : '',
-    inv_mf:'', curr_mf:''
-  });
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const set = (k,v) => setForm(f => ({...f,[k]:v}));
+  const [syncing, setSyncing] = useState(false);
+  const [filterMonth, setFilterMonth] = useState("");
+  const [sortBy, setSortBy] = useState("date");
+  const [sortDir, setSortDir] = useState("desc");
+  const [showTokenInput, setShowTokenInput] = useState(false);
+  const [tokenStr, setTokenStr] = useState("");
+  const [syncingSheets, setSyncingSheets] = useState(false);
 
-  const calcPct = (inv, curr) => {
-    if (!inv || !curr || parseFloat(inv) === 0) return '';
-    return (((parseFloat(curr) - parseFloat(inv)) / parseFloat(inv)) * 100).toFixed(2);
-  };
+  // Get unique months for the dropdown filter
+  const allMonths = useMemo(() => {
+    return [...new Set(investments.map(inv => {
+      if (!inv.date) return null;
+      const d = new Date(inv.date);
+      if (isNaN(d.getTime())) return null;
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }))]
+    .filter(Boolean)
+    .sort().reverse()
+    .map(ym => {
+      const [y, m] = ym.split('-');
+      const d = new Date(y, m - 1, 1);
+      return { val: ym, label: `${d.toLocaleString('default', { month: 'long' })} ${y}` };
+    });
+  }, [investments]);
 
-  const submit = async () => {
-    if (!form.inv_mf || !form.curr_mf) return alert("Enter invested and current values");
-    setLoading(true);
-    try {
-      await fetch(`${API}/investments`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({...form, ret_pct: calcPct(form.inv_mf, form.curr_mf)})
+  // Apply filters and sorting
+  const processedData = useMemo(() => {
+    let data = [...investments];
+    
+    // Filter
+    if (filterMonth) {
+      data = data.filter(inv => {
+        if (!inv.date) return false;
+        const d = new Date(inv.date);
+        const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        return ym === filterMonth;
       });
-      setSuccess(true); onAdd();
-      setForm({ date: sundays[0] ? sundays[0].toISOString().split('T')[0] : '', inv_mf:'', curr_mf:'' });
-      setTimeout(() => setSuccess(false), 2000);
-    } finally { setLoading(false); }
+    }
+
+    // Sort
+    data.sort((a, b) => {
+      let aVal, bVal;
+      
+      if (sortBy === 'date') {
+        aVal = new Date(a.date).getTime();
+        bVal = new Date(b.date).getTime();
+      } else if (sortBy === 'ret_amount') {
+        aVal = parseFloat(a.total_curr || 0) - parseFloat(a.total_inv || 0);
+        bVal = parseFloat(b.total_curr || 0) - parseFloat(b.total_inv || 0);
+      } else {
+        // Fallback for number fields (total_inv, total_curr, total_ret_pct)
+        aVal = parseFloat(a[sortBy] || 0);
+        bVal = parseFloat(b[sortBy] || 0);
+      }
+
+      if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return data;
+  }, [investments, filterMonth, sortBy, sortDir]);
+
+  const handleSort = (col) => {
+    if (sortBy === col) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(col);
+      setSortDir('desc'); // Default to highest/newest first when changing columns
+    }
   };
 
-  const sorted = [...investments].sort((a,b) => new Date(b.date) - new Date(a.date));
-  const pct = calcPct(form.inv_mf, form.curr_mf);
+  const handleOpenKite = () => {
+    // 1. Open the Kite login page
+    window.open("https://kite.zerodha.com/connect/LOGIN?api_key=6gcxnf0qycaphw5k", "_blank", "width=500,height=600");
+    // 2. Show the inline input field
+    setShowTokenInput(true);
+  };
+
+  const handleSubmitToken = async () => {
+    let token = tokenStr.trim();
+    
+    // Smart extraction: pluck the request_token out of the pasted URL
+    if (token.includes("request_token=")) {
+      const match = token.match(/request_token=([^&]+)/);
+      if (match) token = match[1];
+    }
+
+    if (!token) {
+      alert("❌ Please paste the full URL containing the request_token.");
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      const res = await fetch(`${API}/sync/kite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request_token: token })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        alert("✅ " + data.message);
+        onAdd(); // Refresh the table
+        setShowTokenInput(false); // Hide the input
+        setTokenStr(""); // Clear the input
+      } else {
+        alert("❌ Sync Failed: " + data.message);
+      }
+    } catch (e) {
+      alert("❌ Network Error: " + e.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleSyncToSheets = async () => {
+    setSyncingSheets(true);
+    try {
+      const res = await fetch(`${API}/sync/investments-to-sheets`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message.includes("No new") ? "👍 " + data.message : "✅ " + data.message);
+      } else {
+        alert("❌ Sync Failed: " + data.message);
+      }
+    } catch (e) {
+      alert("❌ Network Error: " + e.message);
+    } finally {
+      setSyncingSheets(false);
+    }
+  };
 
   return (
-    <div className="invest-layout">
-      <div className="invest-form-card">
-        <h3 style={{fontFamily:'Syne',fontWeight:700,marginBottom:'0.25rem'}}>Log Weekly Snapshot</h3>
-        <div className="form-group">
-          <label>Date (Sundays only)</label>
-          <select className="sel" value={form.date} onChange={e => set('date', e.target.value)}>
-            {sundays.map(s => {
-              const iso = s.toISOString().split('T')[0];
-              return <option key={iso} value={iso}>{iso} ({s.toLocaleDateString('en-IN',{weekday:'short'})})</option>;
-            })}
+    <div className="invest-layout" style={{ display: 'block' }}>
+      
+      {/* Controls Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <select className="sel" style={{ width: 'auto', minWidth: '180px' }} value={filterMonth} onChange={e => setFilterMonth(e.target.value)}>
+            <option value="">📅 All Months</option>
+            {allMonths.map(m => (
+              <option key={m.val} value={m.val}>{m.label}</option>
+            ))}
           </select>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text2)', fontWeight: 500 }}>
+            Showing {processedData.length} records
+          </span>
         </div>
-        <div className="form-group">
-          <label>Invested Amount (MF) ₹</label>
-          <input className="inp" type="number" placeholder="0" value={form.inv_mf} onChange={e => set('inv_mf', e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label>Current Value (MF) ₹</label>
-          <input className="inp" type="number" placeholder="0" value={form.curr_mf} onChange={e => set('curr_mf', e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label>Return % (auto-calculated)</label>
-          <input className="inp" readOnly value={pct ? `${pct}%` : ''} style={{opacity:0.7,cursor:'not-allowed'}} />
-        </div>
-        {form.inv_mf && form.curr_mf && (
-          <div className={`preview-amount-pill ${parseFloat(form.curr_mf) >= parseFloat(form.inv_mf) ? 'credit' : 'debit'}`}>
-            <div className="pill-label">Unrealised Gain / Loss</div>
-            <div className={`pill-amount ${parseFloat(form.curr_mf) >= parseFloat(form.inv_mf) ? 'pos' : 'neg'}`}>
-              {fmt(parseFloat(form.curr_mf || 0) - parseFloat(form.inv_mf || 0))}
-            </div>
+        
+        {!showTokenInput ? (
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button 
+              className="action-btn secondary" 
+              onClick={handleSyncToSheets}
+              disabled={syncingSheets}
+            >
+              {syncingSheets ? '⏳ Syncing...' : '📥 Sync to Sheets'}
+            </button>
+            <button 
+              className="action-btn" 
+              style={{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', boxShadow: '0 4px 15px rgba(239, 68, 68, 0.3)' }}
+              onClick={handleOpenKite} 
+            >
+              ⚡ Sync with Kite
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', animation: 'fadeIn 0.3s ease' }}>
+            <input 
+              className="inp" 
+              placeholder="Paste 127.0.0.1 URL here..." 
+              value={tokenStr} 
+              onChange={e => setTokenStr(e.target.value)}
+              style={{ width: '250px', padding: '0.55rem 0.8rem', borderRadius: '8px' }}
+            />
+            <button className="action-btn" onClick={handleSubmitToken} disabled={syncing}>
+              {syncing ? '⏳...' : 'Submit'}
+            </button>
+            <button 
+              className="action-btn secondary" 
+              onClick={() => { setShowTokenInput(false); setTokenStr(""); }} 
+              disabled={syncing}
+            >
+              Cancel
+            </button>
           </div>
         )}
-        <button className={`submit-btn ${success?'success':''}`} onClick={submit} disabled={loading}>
-          {loading ? "Saving..." : success ? "✅ Logged!" : "Save Snapshot"}
-        </button>
       </div>
 
+      {/* Data Table */}
       <div>
-        <h3 className="section-title">📋 Investment History</h3>
         <div className="data-table">
-          <div className="table-header inv-cols">
-            <span>Date</span><span>INV (MF)</span><span>CURR (MF)</span><span>RET ₹</span><span>RET %</span><span>Status</span>
+          <div className="table-header inv-cols" style={{ cursor: 'pointer', userSelect: 'none' }}>
+            <span onClick={() => handleSort('date')}>Date {sortBy === 'date' && <span className="sort-indicator">{sortDir === 'asc' ? '↑' : '↓'}</span>}</span>
+            <span onClick={() => handleSort('total_inv')}>INV (MF) {sortBy === 'total_inv' && <span className="sort-indicator">{sortDir === 'asc' ? '↑' : '↓'}</span>}</span>
+            <span onClick={() => handleSort('total_curr')}>CURR (MF) {sortBy === 'total_curr' && <span className="sort-indicator">{sortDir === 'asc' ? '↑' : '↓'}</span>}</span>
+            <span onClick={() => handleSort('ret_amount')}>RET ₹ {sortBy === 'ret_amount' && <span className="sort-indicator">{sortDir === 'asc' ? '↑' : '↓'}</span>}</span>
+            <span onClick={() => handleSort('total_ret_pct')}>RET % {sortBy === 'total_ret_pct' && <span className="sort-indicator">{sortDir === 'asc' ? '↑' : '↓'}</span>}</span>
+            <span onClick={() => handleSort('total_status')}>Status {sortBy === 'total_status' && <span className="sort-indicator">{sortDir === 'asc' ? '↑' : '↓'}</span>}</span>
           </div>
-          {sorted.map((inv, i) => {
-            const ret = parseFloat(inv.ret_amount);
+          {processedData.map((inv, i) => {
+            const ret = parseFloat(inv.total_curr || 0) - parseFloat(inv.total_inv || 0);
             return (
               <div key={i} className={`table-row inv-cols ${i%2===0?'row-even':''}`}>
                 <span>{formatDate(inv.date)}</span>
-                <span>{fmt(inv.inv_mf)}</span>
-                <span>{fmt(inv.curr_mf)}</span>
+                <span>{fmt(inv.total_inv)}</span>
+                <span>{fmt(inv.total_curr)}</span>
                 <span className={ret >= 0 ? 'pos' : 'neg'}>{fmt(ret)}</span>
-                <span className={parseFloat(inv.ret_pct) >= 0 ? 'pos' : 'neg'}>{fmtPct(inv.ret_pct)}</span>
-                <span style={{fontSize:'1.2rem'}}>{inv.status}</span>
+                <span className={parseFloat(inv.total_ret_pct) >= 0 ? 'pos' : 'neg'}>{fmtPct(inv.total_ret_pct)}</span>
+                <span style={{fontSize:'1.2rem'}}>{inv.total_status || '—'}</span>
               </div>
             );
           })}
-          {sorted.length === 0 && <div className="empty-state">No investment snapshots yet</div>}
+          {processedData.length === 0 && <div className="empty-state">No investment snapshots match your filters.</div>}
         </div>
       </div>
     </div>

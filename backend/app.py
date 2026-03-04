@@ -6,9 +6,9 @@ import os
 from datetime import datetime, date
 import json
 import requests
-import hashlib # <-- NEW
-import csv     # <-- NEW
-import io      # <-- NEW
+import hashlib
+import csv 
+import io     
 
 app = Flask(__name__)
 CORS(app)
@@ -76,6 +76,7 @@ class Investment(db.Model):
     total_curr = db.Column(db.Float, default=0.0)
     total_ret_pct = db.Column(db.Float, default=0.0)
     total_status = db.Column(db.String(10))
+    synced = db.Column(db.Boolean, default=False) 
 
 class SyncLog(db.Model):
     __tablename__ = "sync_log"
@@ -514,7 +515,7 @@ def sync_kite_direct():
         ret_pct = ((total_curr - total_inv) / total_inv * 100) if total_inv > 0 else 0
         
         prev = Investment.query.filter(Investment.date < today_date).order_by(Investment.date.desc()).first()
-        status = "📈" if not prev or ret_pct >= prev.ret_pct_mf else "📉"
+        status = "⬆️💹" if not prev or ret_pct >= prev.ret_pct_mf else "⬇️📉"
 
         # 7. Save to Database
         new_inv = Investment(
@@ -534,6 +535,43 @@ def sync_kite_direct():
         print(f"❌ Kite Sync Error: {str(e)}")
         import traceback
         traceback.print_exc()
+        return jsonify({"success": False, "message": str(e)})
+
+@app.route('/api/sync/investments-to-sheets', methods=['POST'])
+def sync_investments_to_sheets():
+    try:
+        # Fetch only unsynced investments
+        unsynced_invs = Investment.query.filter_by(synced=False).all()
+        
+        if not unsynced_invs:
+            return jsonify({"success": True, "message": "No new investments to sync to Sheets."})
+
+        # Format the payload for Apps Script
+        payload = {
+            "type": "investments",
+            "data": [
+                {
+                    "date": inv.date.strftime("%Y-%m-%d"),
+                    "total_inv": float(inv.total_inv),
+                    "total_curr": float(inv.total_curr)
+                } for inv in unsynced_invs
+            ]
+        }
+
+        print(f"📡 Sending {len(unsynced_invs)} records to Google Sheets...")
+        response = requests.post(SHEETS_URL, json=payload, timeout=60)
+        
+        if response.status_code == 200:
+            # Mark as synced in the database
+            for inv in unsynced_invs:
+                inv.synced = True
+            db.session.commit()
+            return jsonify({"success": True, "message": f"Successfully synced {len(unsynced_invs)} records to Sheets!"})
+        else:
+            return jsonify({"success": False, "message": f"Sheets error: {response.text}"})
+
+    except Exception as e:
+        print(f"❌ Sheets Sync Error: {str(e)}")
         return jsonify({"success": False, "message": str(e)})
     
 @app.route('/api/sync/sheets', methods=['POST'])

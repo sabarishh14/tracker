@@ -730,7 +730,7 @@ function MoneyTab({ accounts, transactions }) {
 
             {/* Pie Chart + Legend Grid */}
             {pieArr.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', alignItems: 'start' }}>
+              <div className="pie-grid">
                 {/* Pie Chart */}
                 <div style={{ position: 'relative', background: 'rgba(99, 102, 241, 0.04)', borderRadius: '16px', padding: '1.5rem', border: '1px solid rgba(99, 102, 241, 0.1)', height: '380px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -2315,6 +2315,21 @@ const importCSV = useCallback((csvText) => {
           onClose={() => setIsActivityModalOpen(false)} 
         />
       )}
+
+      {/* 📱 Mobile Bottom Navigation */}
+      <nav className="mobile-bottom-nav">
+        {TABS.map(t => (
+          <button
+            key={t.id}
+            className={`mobile-nav-item ${tab === t.id ? 'active' : ''} ${t.add ? 'add-item' : ''}`}
+            onClick={() => t.add ? setIsAddModalOpen(true) : setTab(t.id)}
+          >
+            <span className="mobile-nav-icon">{t.icon}</span>
+            {/* Split the label so things like "Gym & Activity" don't break the UI */}
+            <span className="mobile-nav-label">{t.label.split(' ')[0]}</span> 
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }

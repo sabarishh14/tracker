@@ -4,38 +4,6 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis
 const API = "http://localhost:5000/api";
 const STORAGE_KEY = 'lifetrack_balances';
 
-// localStorage helpers
-const getStoredBalances = () => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
-  }
-};
-
-const saveBalances = (accounts) => {
-  try {
-    const balances = {};
-    accounts.forEach(a => {
-      balances[a.account] = a.balance;
-    });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(balances));
-  } catch (e) {
-    console.error('Failed to save balances to localStorage:', e);
-  }
-};
-
-const updateStoredBalance = (account, newBalance) => {
-  try {
-    const balances = getStoredBalances() || {};
-    balances[account] = newBalance;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(balances));
-  } catch (e) {
-    console.error('Failed to update balance in localStorage:', e);
-  }
-};
-
 const BANKS = {
   KOTAK:  { emoji: "🔴", color: "#ef4444" },
   IDBI:   { emoji: "🟢", color: "#22c55e" },
@@ -151,25 +119,39 @@ function HomeTab({ accounts, transactions, physical, investments, onSyncBalances
   };
 
   const syncTransactionsFromSheets = async () => {
-    setSyncingSheetsTransactions(true);
-    setSyncMsg('');
     try {
-      const res = await fetch(`${API}/sync/db-to-sheets`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      // 1. Ask the backend how many transactions are waiting
+      const checkRes = await fetch(`${API}/sync/check-transactions`);
+      const checkData = await checkRes.json();
+
+      if (!checkData.success) {
+        return alert("❌ Error checking sync status: " + checkData.message);
+      }
+
+      if (checkData.count === 0) {
+        return alert("👍 No new transactions to sync to Sheets.");
+      }
+
+      // 2. The Confirmation Prompt (Mimicking your old y/n console check!)
+      const isConfirmed = window.confirm(`You have ${checkData.count} unsynced transaction(s). Ready to send them to Google Sheets?`);
+      
+      // If you click Cancel, we stop right here.
+      if (!isConfirmed) return; 
+
+      // 3. If confirmed, lock the button and do the actual sync
+      setSyncingSheetsTransactions(true);
+      const res = await fetch(`${API}/sync/db-to-sheets`, { method: 'POST' });
       const data = await res.json();
-      if (res.ok && data.success) {
-        setSyncMsg(`✅ Synced successfully! Imported ${data.inserted} new transactions.`);
-        // Transactions synced to backend. Refresh will happen on next navigation or page reload.
+      
+      if (data.success) {
+        alert("✅ " + data.message);
       } else {
-        setSyncMsg(`❌ Sync failed: ${data.message || 'Unknown error'}`);
+        alert("❌ Sync Failed: " + data.message);
       }
     } catch (e) {
-      setSyncMsg('❌ Sync failed: ' + e.message);
+      alert("❌ Network Error: " + e.message);
     } finally {
       setSyncingSheetsTransactions(false);
-      setTimeout(() => setSyncMsg(''), 4000);
     }
   };
 
@@ -1370,21 +1352,7 @@ function AddTransactionModal({ accounts, onAdd, onClose }) {
       });
 
       if (res.ok) {
-        // Update local balances for ALL rows
-        const storedBalances = getStoredBalances() || {};
-        rows.forEach(r => {
-          const currentBalance = storedBalances[r.account] || 0;
-          const amt = parseFloat(r.amount);
-          if (r.type === 'debit' || r.type === 'savings') {
-            storedBalances[r.account] = currentBalance - amt;
-          } else if (r.type === 'credit') {
-            storedBalances[r.account] = currentBalance + amt;
-          }
-        });
-        
-        Object.keys(storedBalances).forEach(acc => updateStoredBalance(acc, storedBalances[acc]));
-        
-        onAdd(); 
+        onAdd(); // This fetches the newly updated balances directly from the database!
         setSuccess(true);
         setTimeout(() => { setSuccess(false); onClose(); }, 1500);
       } else {
@@ -1974,14 +1942,7 @@ export default function App() {
       ]);
       
       // Merge stored balances into accounts (localStorage takes priority)
-      const storedBalances = getStoredBalances() || {};
-      const mergedAccounts = acc.map(a => ({
-        ...a,
-        balance: storedBalances[a.account] !== undefined ? storedBalances[a.account] : a.balance
-      }));
-      
-      setAccounts(mergedAccounts);
-      saveBalances(mergedAccounts); // save the merged result
+      setAccounts(acc);
       setTransactions(txRes.transactions);
       setAllTransactionsLoaded(false); // Mark as not fully loaded yet
       setPhysical(phy);

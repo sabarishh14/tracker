@@ -114,40 +114,57 @@ def get_transactions_for_sync():
 def test_db():
     return {"status": "Database connected successfully"}
 
-@app.route("/api/sync/db-to-sheets", methods=["POST"])
-def sync_db_to_sheets():
+@app.route('/api/sync/check-transactions', methods=['GET'])
+def check_tx_sync():
     try:
-        transactions = get_transactions_for_sync()
-        if not transactions:
-            return jsonify({"success": True, "message": "No new transactions to sync"})
-
-        # HITL: print transactions and ask for confirmation
-        print(f"{len(transactions)} new transaction(s) detected:")
-        for tx in transactions:
-            print(f"{tx['date']} | {tx['account']} | {tx['type']} | {tx['heading']} | {tx['amount']}")
-
-        ans = input("Send these to Sheets? (y/n): ")
-        if ans.lower() != "y":
-            return jsonify({"success": False, "message": "Sync aborted by user"})
-
-        # Send to Apps Script
-        response = requests.post(SHEETS_URL, json=transactions, timeout=60)
-        if response.status_code != 200:
-            return jsonify({"success": False, "message": f"Sheets error: {response.text}"})
-
-        # Mark transactions as synced
-        for tx in transactions:
-            tx_obj = Transaction.query.get(tx['id'])
-            tx_obj.synced = True
-        db.session.commit()
-
-        return jsonify({"success": True, "inserted": len(transactions)})
-
+        # Just count how many are waiting
+        count = Transaction.query.filter_by(synced=False).count()
+        return jsonify({"success": True, "count": count})
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         return jsonify({"success": False, "message": str(e)})
     
+@app.route('/api/sync/db-to-sheets', methods=['POST'])
+def sync_db_to_sheets():
+    try:
+        # 1. Fetch only transactions that haven't been synced yet
+        unsynced = Transaction.query.filter_by(synced=False).order_by(Transaction.date.asc()).all()
+        
+        if not unsynced:
+            return jsonify({"success": True, "message": "No new transactions to sync to Sheets."})
+
+        # 2. Format the payload for your updated Apps Script
+        payload = {
+            "type": "transactions",
+            "data": [
+                {
+                    "id": str(t.id),
+                    "date": t.date.strftime("%Y-%m-%d"),
+                    "month": t.month.strftime("%Y-%m-%d"),
+                    "type": t.type,
+                    "heading": t.heading,
+                    "description": t.description,
+                    "amount": float(t.amount),
+                    "account": t.account
+                } for t in unsynced
+            ]
+        }
+
+        print(f"📡 Sending {len(unsynced)} transactions to Google Sheets...")
+        response = requests.post(SHEETS_URL, json=payload, timeout=60)
+        
+        if response.status_code == 200:
+            # 3. Mark as synced so we don't send duplicates next time
+            for t in unsynced:
+                t.synced = True
+            db.session.commit()
+            return jsonify({"success": True, "message": f"Successfully synced {len(unsynced)} transactions!"})
+        else:
+            return jsonify({"success": False, "message": f"Sheets error: {response.text}"})
+
+    except Exception as e:
+        print(f"❌ Sheets Sync Error: {str(e)}")
+        return jsonify({"success": False, "message": str(e)})
+        
 # ---- ACCOUNTS ----
 @app.route('/api/accounts', methods=['GET'])
 def get_accounts():
@@ -299,37 +316,47 @@ def get_transactions():
 def add_transaction():
     try:
         data = request.json
-        
-        # Make it smart: if it's a single dict, wrap it in a list so we can use one loop
         transactions_data = data if isinstance(data, list) else [data]
-        
         added_count = 0
         
         for item in transactions_data:
             date_obj = datetime.strptime(item['date'], '%Y-%m-%d')
-            # For the month column, we typically store the 1st day of that month
             month_obj = date_obj.replace(day=1)
             
+            amount = float(item['amount'])  
+            tx_type = item['type']
+            acc_name = item['account']
+            
             new_tx = Transaction(
-                # Add added_count to the timestamp so they don't get identical IDs if added in the same millisecond
                 id=int(datetime.now().timestamp() * 1000) + added_count,
-                account=item['account'],
+                account=acc_name,
                 date=date_obj,
                 month=month_obj,
-                type=item['type'],
+                type=tx_type,
                 heading=item['heading'],
                 description=item.get('description', ''),
-                amount=float(item['amount'])
+                amount=amount
             )
             db.session.add(new_tx)
+            
+            # --- NEW: Automatically Update Account Balance ---
+            account_record = Account.query.filter_by(account=acc_name).first()
+            
+            # Only update if the account exists and has balance tracking enabled
+            if account_record and account_record.balance_tracked:
+                if tx_type == 'credit':
+                    account_record.balance += amount
+                elif tx_type in ['debit', 'savings']:
+                    account_record.balance -= amount
+                    
             added_count += 1
             
         db.session.commit()
-        return jsonify({"success": True, "message": f"Successfully added {added_count} transactions!"})
+        return jsonify({"success": True, "message": f"Successfully added {added_count} transactions & updated balances!"})
 
     except Exception as e:
         print(f"❌ Error adding transaction(s): {str(e)}")
-        db.session.rollback()
+        db.session.rollback() # Safely undo everything if there's an error
         return jsonify({"success": False, "message": str(e)})
     
 @app.route('/api/transactions/<int:tid>', methods=['DELETE'])

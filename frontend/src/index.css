@@ -635,3 +635,45 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cur
   transition: all 0.2s;
 }
 .bulk-del-btn:hover { background: var(--neg); color: white; }
+/* ── PREMIUM AUTOCOMPLETE DROPDOWN ─── */
+.custom-dropdown {
+  position: absolute; 
+  top: calc(100% + 4px); 
+  left: 0; 
+  width: 100%; /* Ensures it perfectly matches the input width */
+  max-height: 160px; 
+  overflow-y: auto;
+  background: var(--card); 
+  border: 1px solid var(--border);
+  border-radius: 6px; 
+  z-index: 9999; 
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.custom-dropdown-item {
+  padding: 0.5rem 0.75rem; 
+  font-size: 0.85rem; 
+  color: var(--text);
+  cursor: pointer; 
+  transition: background 0.15s ease;
+}
+
+.custom-dropdown-item:hover {
+  background: var(--bg2); 
+  color: var(--text); /* Keeps it clean instead of turning neon green */
+}
+
+/* Ultra-slim scrollbar so it doesn't look clunky */
+.custom-dropdown::-webkit-scrollbar { width: 4px; }
+.custom-dropdown::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+/* ── DYNAMIC MODAL EXPANSION ─── */
+.modal-body {
+  /* This makes the buttons slide up and down smoothly */
+  transition: padding-bottom 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* This adds space to the bottom of the modal ONLY when a dropdown is actively open inside it! */
+.modal-body:has(.custom-dropdown) {
+  padding-bottom: 170px !important; 
+}

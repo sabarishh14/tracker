@@ -1300,9 +1300,54 @@ function MoneyTab({ accounts, transactions }) {
 // }
 
 // ─── ADD TRANSACTION MODAL (BULK EXCEL STYLE) ─────────────────────────
-function AddTransactionModal({ accounts, onAdd, onClose }) {
+
+// ─── REUSABLE AUTOCOMPLETE COMPONENT ──────────────────────────────
+function AutocompleteInput({ value, onChange, options, placeholder }) {
+  const [filtered, setFiltered] = useState([]);
+  const [show, setShow] = useState(false);
+
+  const handleType = (e) => {
+    const val = e.target.value;
+    onChange(val);
+    setFiltered(options.filter(o => o.toLowerCase().includes(val.toLowerCase())));
+    setShow(true);
+  };
+
+  return (
+    <div style={{ position: 'relative', width: '100%' }}>
+      <input 
+        type="text" className="bulk-inp" placeholder={placeholder} 
+        value={value} onChange={handleType}
+        onFocus={() => { 
+          setFiltered(options.filter(o => o.toLowerCase().includes(value.toLowerCase()))); 
+          setShow(true); 
+        }}
+        // The 200ms delay ensures the click event on the dropdown item fires before the menu hides
+        onBlur={() => setTimeout(() => setShow(false), 200)} 
+      />
+      {show && filtered.length > 0 && (
+        <div className="custom-dropdown">
+          {filtered.map(opt => (
+            <div key={opt} className="custom-dropdown-item" onClick={() => { onChange(opt); setShow(false); }}>
+              {opt}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AddTransactionModal({ accounts, transactions, onAdd, onClose }) {
   const today = new Date().toISOString().split('T')[0];
   
+  const recentDescriptions = [...new Set(
+    (transactions || [])
+      .slice(0, 100)
+      .map(t => t.description)
+      .filter(desc => desc && desc.trim() !== '')
+  )];
+
   // Create a factory for a fresh row
   const createEmptyRow = () => ({
     id: Date.now() + Math.random(), // unique ID for React mapping
@@ -1375,6 +1420,7 @@ function AddTransactionModal({ accounts, onAdd, onClose }) {
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         
+        {/* We removed the huge padding, and added a sensible minHeight so the first row has room to breathe */}
         <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto', padding: '1rem' }}>
           
           {/* Table Headers */}
@@ -1404,10 +1450,11 @@ function AddTransactionModal({ accounts, onAdd, onClose }) {
               </select>
 
               {/* Using a datalist for category autocomplete without messy z-index dropdowns in a grid */}
-              <input 
-                type="text" className="bulk-inp" placeholder="Category" 
-                value={row.heading} onChange={e => updateRow(row.id, 'heading', e.target.value)} 
-                list="category-options"
+              <AutocompleteInput 
+                value={row.heading} 
+                onChange={val => updateRow(row.id, 'heading', val)} 
+                options={CATEGORIES} 
+                placeholder="Category" 
               />
               
               <input 
@@ -1415,9 +1462,11 @@ function AddTransactionModal({ accounts, onAdd, onClose }) {
                 value={row.amount} onChange={e => updateRow(row.id, 'amount', e.target.value)} 
               />
               
-              <input 
-                type="text" className="bulk-inp" placeholder="Optional note..." 
-                value={row.description} onChange={e => updateRow(row.id, 'description', e.target.value)} 
+              <AutocompleteInput 
+                value={row.description} 
+                onChange={val => updateRow(row.id, 'description', val)} 
+                options={recentDescriptions} 
+                placeholder="Optional note..." 
               />
               
               <button 
@@ -2253,6 +2302,7 @@ const importCSV = useCallback((csvText) => {
       {isAddModalOpen && (
         <AddTransactionModal 
           accounts={accounts} 
+          transactions={transactions} // <-- Make sure this is passed in!
           onAdd={fetchAll} 
           onClose={() => setIsAddModalOpen(false)} 
         />

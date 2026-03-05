@@ -81,6 +81,7 @@ function HomeTab({ accounts, transactions, physical, investments, onSyncBalances
   const [syncingSheetsTransactions, setSyncingSheetsTransactions] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
   const fileRef = useRef(null);
+  const [showBalances, setShowBalances] = useState(false); // <-- Default to hidden for privacy
 
   // Trigger the background fetch when looking at the money section
   useEffect(() => {
@@ -209,10 +210,21 @@ function HomeTab({ accounts, transactions, physical, investments, onSyncBalances
       {/* Hero row: Net Worth + Physical Activity */}
       <div className="home-hero">
         <div className="net-worth-card">
-          <div>
-            <div className="nw-label">Total Net Worth</div>
-            <div className="nw-value">{fmt(netWorth)}</div>
-            <div className="nw-sub">Across {accounts.length} accounts</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <div className="nw-label">Total Net Worth</div>
+              <div className="nw-value">{showBalances ? fmt(netWorth) : '₹ ••••••'}</div>
+              <div className="nw-sub">Across {accounts.length} accounts</div>
+            </div>
+            <button 
+              onClick={() => setShowBalances(!showBalances)}
+              style={{ position: 'relative', zIndex: 10, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', fontSize: '1.2rem' }}
+              title={showBalances ? "Hide Balances" : "Show Balances"}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.25)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+            >
+              {showBalances ? '🙈' : '👁️'}
+            </button>
           </div>
         </div>
         <div className="phys-home-card">
@@ -248,7 +260,7 @@ function HomeTab({ accounts, transactions, physical, investments, onSyncBalances
                   <span className="acc-emoji">{BANKS[a.account]?.emoji}</span>
                   <span className="acc-name">{a.account}</span>
                 </div>
-                <div className="acc-balance">{fmt(a.balance)}</div>
+                <div className="acc-balance">{showBalances ? fmt(a.balance) : '₹ ••••••'}</div>
               </div>
             ))}
         </div>

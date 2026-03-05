@@ -10,11 +10,6 @@ const API = import.meta.env.VITE_API_URL ||
 
 const API_KEY = import.meta.env.VITE_API_SECRET_KEY;
 
-// Validate API_KEY exists in non-development environments
-if (!API_KEY && import.meta.env.MODE === 'production') {
-  console.error("Missing API_SECRET_KEY - check VITE_API_SECRET_KEY environment variable");
-}
-
 const BANKS = {
   KOTAK:  { emoji: "🔴", color: "#ef4444" },
   IDBI:   { emoji: "🟢", color: "#22c55e" },
@@ -22,11 +17,11 @@ const BANKS = {
   CUB:    { emoji: "🟣", color: "#a855f7" },
   INDIAN: { emoji: "🔵", color: "#3b82f6" },
   ICICI:  { emoji: "🟡", color: "#eab308" },
-  "CC-PINNACLE 6360": { emoji: "💳", color: "#ec4949" },
-  "CC-SBI 0033": { emoji: "💳", color: "#ec4949" },
-  "CC-ICICI SAFFIRE": { emoji: "💳", color: "#ec4949" },
-  "CC-AP 4004": { emoji: "💳", color: "#ec4949" },
-  "CC-SBI 9810": { emoji: "💳", color: "#ec4949" },
+  "CC-PINNACLE 6360": { emoji: "💳", color: "#ec4899" },
+  "CC-SBI 0033": { emoji: "💳", color: "#ec4899" },
+  "CC-ICICI SAFFIRE": { emoji: "💳", color: "#ec4899" },
+  "CC-AP 4004": { emoji: "💳", color: "#ec4899" },
+  "CC-SBI 9810": { emoji: "💳", color: "#ec4899" },
   "Cash": { emoji: "💵", color: "#10b981" },
 };
 
@@ -427,7 +422,7 @@ function MoneyTab({ accounts, transactions }) {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   
   // Column widths for resizing
-  const [colWidths, setColWidths] = useState({ date: 90, account: 230, type: 85, month: 110, amount: 130, heading: 140, desc: 0 });
+  const [colWidths, setColWidths] = useState({ date: 90, account: 230, type: 110, month: 110, amount: 130, heading: 140, desc: 0 });
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -582,7 +577,7 @@ function MoneyTab({ accounts, transactions }) {
     
     const handleMouseMove = (me) => {
       const diff = me.clientX - startX;
-      const minWidths = { date: 80, account: 200, type: 70, month: 100, amount: 120, heading: 100, desc: 100 };
+      const minWidths = { date: 80, account: 200, type: 90, month: 100, amount: 120, heading: 100, desc: 100 };
       const newWidth = Math.max(minWidths[col] || 60, startWidth + diff);
       setColWidths(w => ({ ...w, [col]: newWidth }));
     };
@@ -1218,7 +1213,7 @@ function MoneyTab({ accounts, transactions }) {
                   </span>
                   <span className="tx-type-cell"><span className={`tx-badge ${t.type}`}>{t.type.charAt(0).toUpperCase() + t.type.slice(1)}</span></span>
                   <span className="tx-month">{monthLabel}</span>
-                  <span className={`tx-amount ${t.type === 'debit' ? 'neg' : t.type === 'credit' ? 'pos' : 'accent'}`}>
+                  <span className={`tx-amount ${t.type === 'debit' ? 'neg' : t.type === 'credit' ? 'pos' : t.type === 'investment' ? 'blue-text' : 'accent'}`}>
                     {t.type === 'debit' ? '−' : '+'}{fmt(t.amount)}
                   </span>
                   <span className="tx-heading">{t.heading}</span>
@@ -1303,7 +1298,15 @@ function AddTransactionModal({ accounts, transactions, onAdd, onClose }) {
     setRows(rows.map(row => row.id === id ? { ...row, [field]: value } : row));
   };
 
-  const addRow = () => setRows([...rows, createEmptyRow()]);
+  const addRow = () => {
+    const lastRow = rows[rows.length - 1];
+    setRows([...rows, {
+      ...lastRow,
+      id: Date.now() + Math.random(), // Need a fresh ID for React
+      amount: '',
+      description: ''
+    }]);
+  };  
   
   const removeRow = (id) => {
     if (rows.length === 1) return; // Keep at least one row
@@ -1422,13 +1425,13 @@ function AddTransactionModal({ accounts, transactions, onAdd, onClose }) {
             {CATEGORIES.map(cat => <option key={cat} value={cat} />)}
           </datalist>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
-            <button className="action-btn secondary" onClick={addRow} style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
-              ➕ Add Another Row
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
+            <button className="action-btn secondary" onClick={addRow} style={{ flex: 1, justifyContent: 'center' }}>
+              ➕ Add Row
             </button>
             
-            <button className={`action-btn ${success ? 'success' : ''}`} onClick={submit} disabled={loading}>
-              {loading ? "Saving All..." : success ? "✅ Saved!" : `💾 Save ${rows.length} Transaction${rows.length > 1 ? 's' : ''}`}
+            <button className={`action-btn ${success ? 'success' : ''}`} onClick={submit} disabled={loading} style={{ flex: 1, justifyContent: 'center' }}>
+              {loading ? "Saving..." : success ? "✅ Saved!" : `💾 Save (${rows.length})`}
             </button>
           </div>
 
@@ -1709,7 +1712,7 @@ function InvestTab({ investments, onAdd }) {
         method: 'POST',
         headers: { 
   'Content-Type': 'application/json',
-  'X-APIKEY': API_KEY 
+  'X-API-KEY': API_KEY 
 },
         body: JSON.stringify({ request_token: token })
       });
@@ -2165,7 +2168,7 @@ const importCSV = useCallback((csvText) => {
             onMouseLeave={(e) => e.target.style.color = 'var(--text)'}
             title={sidebarMinimized ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{sidebarMinimized ? '⬅' : '➡'}</span>
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{sidebarMinimized ? '➡' : '⬅'}</span>
             <span style={{ 
               opacity: sidebarMinimized ? 0 : 1, 
               maxWidth: sidebarMinimized ? 0 : '50px', 

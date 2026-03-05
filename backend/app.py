@@ -31,6 +31,10 @@ SHEETS_URL = os.getenv("SHEETS_URL")
 if not SHEETS_URL:
     raise ValueError("SHEETS_URL environment variable is required")
 
+# Kite API credentials
+KITE_API_KEY = os.getenv("KITE_API_KEY")
+KITE_API_SECRET = os.getenv("KITE_API_SECRET")
+
 def require_api_key(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -552,8 +556,8 @@ def sync_kite_direct():
     if not request_token:
         return jsonify({"success": False, "message": "Request token is required for Kite API"})
 
-    API_KEY = "6gcxnf0qycaphw5k"
-    API_SECRET = "80h6ufr05f28bbl5ewxdfzezilanjwtn"
+    if not KITE_API_KEY or not KITE_API_SECRET:
+        return jsonify({"success": False, "message": "Kite API credentials not configured"})
 
     try:
         today_date = datetime.now().date()
@@ -563,11 +567,11 @@ def sync_kite_direct():
             return jsonify({"success": False, "message": f"Already synced investments for {today_date.strftime('%d/%m/%Y')}!"})
 
         # 2. Generate Checksum & Get Access Token
-        raw = API_KEY + request_token + API_SECRET
+        raw = KITE_API_KEY + request_token + KITE_API_SECRET
         checksum = hashlib.sha256(raw.encode('utf-8')).hexdigest()
 
         token_res = requests.post("https://api.kite.trade/session/token", data={
-            "api_key": API_KEY,
+            "api_key": KITE_API_KEY,
             "request_token": request_token,
             "checksum": checksum
         })
@@ -580,7 +584,7 @@ def sync_kite_direct():
         print("✅ Access token generated")
 
         # 3. Fetch Holdings
-        headers = {"Authorization": f"token {API_KEY}:{access_token}"}
+        headers = {"Authorization": f"token {KITE_API_KEY}:{access_token}"}
         holdings_res = requests.get("https://api.kite.trade/mf/holdings", headers=headers)
         holdings_data = holdings_res.json().get('data', [])
         
@@ -678,153 +682,6 @@ def sync_investments_to_sheets():
     except Exception as e:
         print(f"❌ Sheets Sync Error: {str(e)}")
         return jsonify({"success": False, "message": str(e)})
-    
-@app.route('/api/sync/sheets', methods=['POST'])
-@require_api_key  # <-- Add this line to protect the route
-def sync_from_sheets():
-    print("🔄 Sync request received from frontend")
-    try:
-        print(f"📡 Fetching from Sheets URL: {SHEETS_URL}")
-        response = requests.get(
-            SHEETS_URL,
-            params={"type": "transactions"},
-            timeout=30
-        )
-        print(f"✅ Sheets response status: {response.status_code}")
-
-        try:
-            sheet_transactions = response.json()
-            print(f"📦 Parsed JSON, type: {type(sheet_transactions)}, count: {len(sheet_transactions) if isinstance(sheet_transactions, list) else 'N/A'}")
-        except Exception as je:
-            print(f"❌ JSON parse error: {je}")
-            print(f"📋 Response text: {response.text[:500]}")
-            return jsonify({
-                "success": False,
-                "message": f"Failed to parse Sheets response: {str(je)}"
-            })
-
-        if not isinstance(sheet_transactions, list):
-            print(f"❌ Invalid response type: {type(sheet_transactions)}")
-            return jsonify({
-                "success": False,
-                "message": "Invalid response from Sheets"
-            })
-
-        # Pre-load all accounts into memory to avoid repeated queries
-        print(f"📥 Pre-loading accounts...")
-        all_accounts = {acc.account: acc for acc in Account.query.all()}
-        print(f"✅ Loaded {len(all_accounts)} accounts")
-
-        # Query ONLY the keys needed for dedup (single efficient query)
-        print(f"🔍 Building dedup set from database...")
-        existing_txs = set()
-        for tx in db.session.query(Transaction.date, Transaction.account, Transaction.amount, Transaction.heading).all():
-            existing_txs.add((str(tx.date), tx.account, float(tx.amount), tx.heading))
-        print(f"✅ Loaded {len(existing_txs)} existing transaction signatures")
-
-        imported_count = 0
-        skipped_count = 0
-        batch_size = 100
-        print(f"🔄 Starting to process {len(sheet_transactions)} transactions (batch size: {batch_size})...")
-
-        for i, tx in enumerate(sheet_transactions):
-            try:
-                if i % 500 == 0:
-                    print(f"  [{i}/{len(sheet_transactions)}] Processing...")
-                
-                sheet_id = str(tx.get('id', ''))
-                if not sheet_id:
-                    continue
-
-                date_str = tx.get('date', '')
-                if not date_str:
-                    continue
-                    
-                if 'T' in date_str:
-                    date_str = date_str.split('T')[0]
-
-                amount_str = str(tx.get('amount', '')).strip()
-                if not amount_str:
-                    continue
-
-                try:
-                    amount = float(amount_str)
-                    date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-                except ValueError:
-                    continue
-
-                account_name = tx.get('account', '')
-                heading = tx.get('heading', '')
-
-                # Check if this transaction already exists (in-memory set lookup - O(1))
-                tx_key = (date_str, account_name, amount, heading)
-                if tx_key in existing_txs:
-                    skipped_count += 1
-                    continue
-
-                month_obj = date_obj.replace(day=1)
-
-                new_tx = Transaction(
-                    id=int(sheet_id),
-                    account=account_name,
-                    date=date_obj,
-                    month=month_obj,
-                    type=tx.get('type', 'debit').lower(),
-                    heading=heading,
-                    description=tx.get('description', ''),
-                    amount=amount
-                )
-
-                db.session.add(new_tx)
-                existing_txs.add(tx_key)
-
-                # Update account balance from pre-loaded accounts
-                if account_name in all_accounts:
-                    if tx.get('type', '').lower() == "credit":
-                        all_accounts[account_name].balance += amount
-                    elif tx.get('type', '').lower() == "debit":
-                        all_accounts[account_name].balance -= amount
-
-                imported_count += 1
-
-                # Commit in batches
-                if imported_count % batch_size == 0:
-                    db.session.commit()
-                    print(f"  ✓ Batch committed: {imported_count} imported, {skipped_count} skipped")
-
-            except Exception as e:
-                print(f"⚠️  Skipping tx {i}: {type(e).__name__}: {str(e)}")
-                continue
-
-        print(f"💾 Final commit for remaining {imported_count % batch_size or batch_size} transactions...")
-        try:
-            db.session.commit()
-            print(f"✅ Database commit successful")
-        except Exception as commit_err:
-            print(f"❌ Commit error: {type(commit_err).__name__}: {str(commit_err)}")
-            import traceback
-            traceback.print_exc()
-            db.session.rollback()
-            return jsonify({
-                "success": False,
-                "message": f"Database commit failed: {str(commit_err)}"
-            })
-
-        print(f"✨ Sync complete: {imported_count}/{len(sheet_transactions)} imported")
-        return jsonify({
-            "success": True,
-            "sheet_count": len(sheet_transactions),
-            "imported": imported_count
-        })
-
-    except Exception as e:
-        print(f"❌ OUTER SYNC ERROR: {type(e).__name__}: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            "success": False,
-            "message": str(e)
-        })
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

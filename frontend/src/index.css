@@ -171,6 +171,7 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-s
 .acc-row { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0; font-size: 0.875rem; border-bottom: 1px solid var(--border); }
 .acc-row:last-child { border-bottom: none; }
 .acc-row-left { display: flex; align-items: center; gap: 0.5rem; }
+.blue-text { color: #3b82f6; }
 
 /* ── FILTER CHIPS (new) ─── */
 .filter-bar { display: flex; gap: 0.625rem; flex-wrap: wrap; align-items: center; margin-bottom: 1.25rem; }
@@ -335,6 +336,10 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-s
 .tx-badge.debit { background: rgba(248,113,113,0.12); color: #fca5a5; }
 .tx-badge.credit { background: rgba(52,211,153,0.12); color: #86efac; }
 .tx-badge.savings { background: rgba(99,102,241,0.12); color: #a5b4fc; }
+.tx-badge.investment { 
+  background: rgba(59, 130, 246, 0.12); 
+  color: #93c5fd; 
+}
 .tx-month { font-size: 0.82rem; color: var(--text3); font-weight: 500; white-space: nowrap; }
 .tx-amount { font-family: 'Syne', sans-serif; font-size: 0.92rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tx-heading { font-size: 0.85rem; color: var(--text); font-weight: 500; }
@@ -401,6 +406,10 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-s
 .pie-legend-name { font-size: 0.85rem; color: var(--text3); font-weight: 500; }
 .pie-legend-val { font-family: 'Syne', sans-serif; font-size: 0.875rem; font-weight: 700; color: var(--text); }
 .pie-legend-pct { font-size: 0.72rem; color: var(--text2); margin-left: 0.5rem; }
+
+.recharts-pie-sector:focus {
+  outline: none !important;
+}
 
 /* Scrollable legend container styling */
 .pie-legend-scroll {
@@ -567,6 +576,28 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-s
 ::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.3); border-radius: 4px; transition: background 0.2s; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.6); }
 input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
+
+/* ── TABLE ACTION BUTTONS (Bulletproof against mobile overrides) ─── */
+.table-action-btn {
+  display: flex; align-items: center; justify-content: center;
+  height: 32px; border: none; border-radius: 6px !important; cursor: pointer;
+  font-family: 'DM Sans', sans-serif; font-size: 0.75rem; font-weight: 700;
+  transition: all 0.2s; white-space: nowrap; position: static !important;
+}
+.table-action-btn.icon {
+  background: transparent; color: var(--text2); font-size: 1.3rem; font-weight: 400; width: 32px;
+}
+.table-action-btn.icon:hover { background: rgba(220, 38, 38, 0.15); color: #dc2626; }
+
+.table-action-btn.confirm {
+  background: #dc2626; color: white; padding: 0 0.85rem; width: auto !important;
+}
+.table-action-btn.confirm:hover { background: #b91c1c; }
+
+.table-action-btn.cancel {
+  background: transparent; border: 1px solid var(--border2); color: var(--text2); padding: 0 0.6rem; width: auto !important;
+}
+.table-action-btn.cancel:hover { background: rgba(255,255,255,0.05); color: var(--text); }
 
 /* ── MODALS (Base Styles) ─── */
 .modal-backdrop {
@@ -789,13 +820,27 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cur
   width: 100%; outline: none; cursor: pointer; border-radius: 4px;
 }
 .bulk-sel:focus { background: var(--bg); }
+
 .bulk-del-btn {
-  background: rgba(220, 38, 38, 0.1); color: var(--neg); border: none;
-  border-radius: 6px; width: 30px; height: 30px; display: flex;
-  align-items: center; justify-content: center; cursor: pointer;
+  background: rgba(220, 38, 38, 0.15); /* Slightly deeper red tint */
+  color: #dc2626; /* Darker, stronger red so it's actually readable */
+  border: none;
+  border-radius: 6px; 
+  min-width: 32px; /* Changed from fixed width so text can breathe! */
+  height: 32px; 
+  display: flex;
+  align-items: center; 
+  justify-content: center; 
+  cursor: pointer;
   transition: all 0.2s;
+  font-family: 'DM Sans', sans-serif; /* Forces consistent font */
 }
-.bulk-del-btn:hover { background: var(--neg); color: white; }
+.bulk-del-btn:hover { 
+  background: #b91c1c; /* A very deep, satisfying solid red on hover */
+  color: white; 
+}
+
+
 /* ── PREMIUM AUTOCOMPLETE DROPDOWN ─── */
 .custom-dropdown {
   position: absolute; 
@@ -925,4 +970,11 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cur
 @keyframes slideUpMobile { 
   from { opacity: 0; transform: translateY(100%); } 
   to { opacity: 1; transform: translateY(0); } 
+}
+
+/* This targets the invisible wrapper Recharts puts around the SVG */
+.recharts-wrapper:focus, 
+.recharts-surface:focus, 
+.recharts-sector:focus {
+  outline: none !important;
 }

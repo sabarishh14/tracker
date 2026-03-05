@@ -89,9 +89,6 @@ class SyncLog(db.Model):
 
 SHEETS_URL = "https://script.google.com/macros/s/AKfycbxmBBF0-oRREVy66H-mL6DGpdgY5fjgL8S1Nr13HBBVVfTbznemzSBWtnsYpPPbGbdb2A/exec"
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
-os.makedirs(DATA_DIR, exist_ok=True)
-
 def get_transactions_for_sync():
     # Fetch only transactions where synced=False
     new_txs = Transaction.query.filter_by(synced=False).all()

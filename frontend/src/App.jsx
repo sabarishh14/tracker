@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
 // If we are on localhost, use 5000. If deployed, use the Render backend URL.
 const API = window.location.hostname === "localhost" 
   ? "http://localhost:5000/api" 
-  : "https://dt-sabs-be.onrender.com/api";const STORAGE_KEY = 'lifetrack_balances';
+  : "https://dt-sabs-be.onrender.com/api";
 
 const BANKS = {
   KOTAK:  { emoji: "🔴", color: "#ef4444" },
@@ -69,19 +69,10 @@ function formatDate(dateStr) {
   return `${d.getDate()}/${d.getMonth()+1}/${String(d.getFullYear()).slice(2)}`;
 }
 
-function getSundays() {
-  const sundays = [];
-  let d = new Date(2025, 9, 5);
-  const today = new Date(); today.setHours(23,59,59,999);
-  while (d <= today) {
-    sundays.push(new Date(d));
-    d = new Date(d); d.setDate(d.getDate() + 7);
-  }
-  return sundays.reverse();
-}
+
 
 // ─── HOME TAB ───────────────────────────────────────────────────────────
-function HomeTab({ accounts, transactions, physical, investments, onSyncBalances, onImportCSV }) {
+function HomeTab({ accounts, transactions, physical, investments, onSyncBalances, onImportCSV, fetchAllTransactions }) {
   const [physMonth, setPhysMonth] = useState(new Date().getMonth());
   const [physYear, setPhysYear] = useState(new Date().getFullYear());
   const [moneyMonth, setMoneyMonth] = useState(new Date().getMonth());
@@ -90,6 +81,13 @@ function HomeTab({ accounts, transactions, physical, investments, onSyncBalances
   const [syncingSheetsTransactions, setSyncingSheetsTransactions] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
   const fileRef = useRef(null);
+
+  // Trigger the background fetch when looking at the money section
+  useEffect(() => {
+    if (fetchAllTransactions) {
+      fetchAllTransactions();
+    }
+  }, [moneyMonth, moneyYear, fetchAllTransactions]);
 
   const SHEETS_URL = "https://script.google.com/macros/s/AKfycbxmBBF0-oRREVy66H-mL6DGpdgY5fjgL8S1Nr13HBBVVfTbznemzSBWtnsYpPPbGbdb2A/exec";
 
@@ -746,19 +744,44 @@ function MoneyTab({ accounts, transactions }) {
             {pieArr.length > 0 ? (
               <div className="pie-grid">
                 {/* Pie Chart */}
+                {/* 3D Modern Donut Chart */}
                 <div style={{ position: 'relative', background: 'rgba(99, 102, 241, 0.04)', borderRadius: '16px', padding: '1.5rem', border: '1px solid rgba(99, 102, 241, 0.1)', height: '380px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
+                      {/* 1. The 3D "Depth" Base Layer (Shifted down and darkened) */}
                       <Pie 
                         data={pieArr.slice(0, 10)} 
                         dataKey="value" 
-                        nameKey="name" 
                         cx="50%" 
-                        cy="50%" 
-                        outerRadius={130} 
-                        innerRadius={50}
-                        paddingAngle={2}
-                        animationDuration={600}
+                        cy="54%" /* Shifted down to create thickness */
+                        outerRadius={125} 
+                        innerRadius={80}
+                        paddingAngle={5}
+                        cornerRadius={8}
+                        stroke="none"
+                        isAnimationActive={false} /* Base stays static while top animates */
+                      >
+                        {pieArr.slice(0, 10).map((_, i) => (
+                          <Cell 
+                            key={`depth-${i}`} 
+                            fill={PIE_COLORS[i % PIE_COLORS.length]}
+                            style={{ filter: 'brightness(0.45)' }} /* Darkens the sides for realistic shadow */
+                          />
+                        ))}
+                      </Pie>
+
+                      {/* 2. The Main "Top" Glassy Layer */}
+                     <Pie 
+                        data={pieArr.slice(0, 10)} 
+                        dataKey="value" 
+                        cx="50%" 
+                        cy="54%" /* Shifted down to create thickness */
+                        outerRadius={125} 
+                        innerRadius={80}
+                        paddingAngle={5}
+                        cornerRadius={8}
+                        stroke="none"
+                        animationDuration={1200} /* Match the top layer's animation */
                         animationEasing="ease-out"
                       >
                         {pieArr.slice(0, 10).map((_, i) => (
@@ -766,17 +789,25 @@ function MoneyTab({ accounts, transactions }) {
                             key={i} 
                             fill={PIE_COLORS[i % PIE_COLORS.length]}
                             style={{ 
-                              filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.25))',
+                              filter: 'drop-shadow(0px 8px 12px rgba(0,0,0,0.5))', /* Floats the top layer */
                               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                               cursor: 'pointer'
                             }}
                           />
                         ))}
                       </Pie>
-                      <Tooltip content={<CustomPieTooltip />} />
+                      <Tooltip content={<CustomPieTooltip />} cursor={{fill: 'transparent'}} />
                     </PieChart>
                   </ResponsiveContainer>
-                </div>
+                  
+                  {/* Floating Total Label perfectly centered in the Donut hole */}
+                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600 }}>Total</div>
+                    <div style={{ fontFamily: 'Syne, sans-serif', fontSize: '1.3rem', fontWeight: 800, color: 'var(--text)' }}>
+                      ₹{pieArr.reduce((sum, item) => sum + item.value, 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    </div>
+                  </div>
+                </div>  
 
                 {/* Legend - Scrollable Container */}
                 <div 
@@ -1171,179 +1202,6 @@ function MoneyTab({ accounts, transactions }) {
     </div>
   );
 }
-
-// // ─── ADD TAB ───────────────────────────────────────────────────────────
-// function AddTab({ accounts, onAdd }) {
-//   const today = new Date().toISOString().split('T')[0];
-//   const [form, setForm] = useState({ account:'KOTAK', date:today, type:'debit', heading:'Food', description:'', amount:'' });
-//   const [loading, setLoading] = useState(false);
-//   const [success, setSuccess] = useState(false);
-//   const [categorySearch, setCategorySearch] = useState('');
-//   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-//   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-
-//   const filteredCategories = CATEGORIES.filter(c => 
-//     c.toLowerCase().includes(categorySearch.toLowerCase())
-//   );
-
-//   const handleCategorySelect = (category) => {
-//     set('heading', category);
-//     setCategorySearch('');
-//     setShowCategoryDropdown(false);
-//   };
-
-// const submit = async () => {
-//   if (!form.amount || isNaN(form.amount)) return alert("Enter a valid amount");
-//   setLoading(true);
-//   try {
-//     const payload = {
-//       date: form.date,
-//       type: form.type,
-//       heading: form.heading,
-//       description: form.description || "",
-//       amount: parseFloat(form.amount),
-//       account: form.account,
-//     };
-
-//     const res = await fetch(`${API}/transactions`, {
-//       method: "POST",
-//       headers: { "Content-Type": "application/json" },
-//       body: JSON.stringify(payload),
-//     });
-
-//     if (res.ok) {
-//       // Update localStorage balance based on transaction type
-//       const storedBalances = getStoredBalances() || {};
-//       const currentBalance = storedBalances[form.account] || 0;
-//       const amount = parseFloat(form.amount);
-      
-//       let newBalance = currentBalance;
-//       if (form.type === 'debit') {
-//         newBalance = currentBalance - amount;
-//       } else if (form.type === 'credit') {
-//         newBalance = currentBalance + amount;
-//       } else if (form.type === 'savings') {
-//         newBalance = currentBalance - amount;
-//       }
-      
-//       updateStoredBalance(form.account, newBalance);
-//       onAdd(); // Refresh accounts state from localStorage/API
-      
-//       setSuccess(true);
-//       setForm({ account: 'KOTAK', date: today, type: 'debit', heading: 'Food', description: '', amount: '' });
-//       setCategorySearch('');
-//       setShowCategoryDropdown(false);
-//       setTimeout(() => setSuccess(false), 2500);
-//     } else {
-//       alert("Failed to save transaction.");
-//     }
-//   } catch (e) {
-//     alert("Network error: " + e.message);
-//   } finally {
-//     setLoading(false);
-//   }
-// };
-
-//   const monthLabel = form.date ? new Date(form.date).toLocaleString('default',{month:'long',year:'numeric'}) : '';
-//   const amtNum = parseFloat(form.amount) || 0;
-
-//   return (
-//     <div className="add-layout">
-//       <div className="add-form-card">
-//         <div className="form-row">
-//           <div className="form-group">
-//             <label>Account</label>
-//             <select className="sel" value={form.account} onChange={e => set('account', e.target.value)}>
-//               {Object.keys(BANKS).map(b => <option key={b} value={b}>{BANKS[b].emoji} {b}</option>)}
-//             </select>
-//           </div>
-//           <div className="form-group">
-//             <label>Date</label>
-//             <input type="date" className="inp" value={form.date} onChange={e => set('date', e.target.value)} />
-//           </div>
-//         </div>
-
-//         <div className="form-group">
-//           <label>Month (auto from date)</label>
-//           <input className="inp" readOnly value={monthLabel} style={{opacity:0.6,cursor:'not-allowed'}} />
-//         </div>
-
-//         <div className="form-group">
-//           <label>Transaction Type</label>
-//           <div className="type-btns">
-//             {[['debit','🔴 Debit'],['credit','🟢 Credit'],['savings','💰 Savings']].map(([t,l]) => (
-//               <button key={t} className={`type-btn ${form.type === t ? 'active-'+t : ''}`} onClick={() => set('type', t)}>{l}</button>
-//             ))}
-//           </div>
-//         </div>
-
-//         <div className="form-row">
-//           <div className="form-group" style={{ position: 'relative' }}>
-//             <label>Category</label>
-//             <input 
-//               type="text" 
-//               className="inp" 
-//               placeholder="Search or type category..."
-//               value={showCategoryDropdown ? categorySearch : form.heading}
-//               onChange={e => {
-//                 setCategorySearch(e.target.value);
-//                 setShowCategoryDropdown(true);
-//               }}
-//               onFocus={() => {
-//                 setCategorySearch('');
-//                 setShowCategoryDropdown(true);
-//               }}
-//               onBlur={() => setTimeout(() => setShowCategoryDropdown(false), 200)}
-//             />
-//             {showCategoryDropdown && filteredCategories.length > 0 && (
-//               <div className="category-dropdown">
-//                 {filteredCategories.map(cat => (
-//                   <div
-//                     key={cat}
-//                     className="category-option"
-//                     onClick={() => handleCategorySelect(cat)}
-//                   >
-//                     {cat}
-//                   </div>
-//                 ))}
-//               </div>
-//             )}
-//           </div>
-//           <div className="form-group">
-//             <label>Amount (₹)</label>
-//             <input className="inp" type="number" placeholder="0.00" value={form.amount} onChange={e => set('amount', e.target.value)} />
-//           </div>
-//         </div>
-
-//         <div className="form-group">
-//           <label>Description (optional)</label>
-//           <input className="inp" placeholder="Add a note..." value={form.description} onChange={e => set('description', e.target.value)} />
-//         </div>
-
-//         <button className={`submit-btn ${success ? 'success' : ''}`} onClick={submit} disabled={loading}>
-//           {loading ? "Saving..." : success ? "✅ Transaction Saved!" : "Save Transaction"}
-//         </button>
-//       </div>
-
-//       {/* Preview Panel */}
-//       <div className="preview-panel">
-//         <div className="preview-title">Transaction Preview</div>
-//         <div className="preview-item"><span className="pk">Account</span><span className="pv">{BANKS[form.account]?.emoji} {form.account}</span></div>
-//         <div className="preview-item"><span className="pk">Date</span><span className="pv">{form.date ? formatDate(form.date) : '—'}</span></div>
-//         <div className="preview-item"><span className="pk">Month</span><span className="pv">{monthLabel || '—'}</span></div>
-//         <div className="preview-item"><span className="pk">Type</span><span className="pv" style={{textTransform:'capitalize'}}>{form.type}</span></div>
-//         <div className="preview-item"><span className="pk">Category</span><span className="pv">{form.heading}</span></div>
-//         {form.description && <div className="preview-item"><span className="pk">Note</span><span className="pv">{form.description}</span></div>}
-//         <div className={`preview-amount-pill ${form.type}`}>
-//           <div className="pill-label">Amount</div>
-//           <div className={`pill-amount ${form.type === 'debit' ? 'neg' : form.type === 'credit' ? 'pos' : 'accent'}`}>
-//             {form.type === 'debit' ? '−' : '+'}{fmt(amtNum)}
-//           </div>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
 
 // ─── ADD TRANSACTION MODAL (BULK EXCEL STYLE) ─────────────────────────
 
@@ -2046,16 +1904,6 @@ export default function App() {
       setInvestments(inv);
     } catch(e) {
       console.error("API error — is the backend running?", e);
-      // Fall back to localStorage balances if available
-      const storedBalances = getStoredBalances();
-      if (storedBalances) {
-        // Reconstruct accounts with stored balances
-        const reconstructedAccounts = Object.entries(BANKS).map(([account, _]) => ({
-          account,
-          balance: storedBalances[account] || 0
-        }));
-        setAccounts(reconstructedAccounts);
-      }
     }
   }, []);
 
@@ -2073,8 +1921,7 @@ export default function App() {
 
   const renderTab = () => {
     switch(tab) {
-      case 0: return <HomeTab accounts={accounts} transactions={transactions} physical={physical} investments={investments} onSyncBalances={syncBalances} onImportCSV={importCSV} />;
-      case 1: return <MoneyTab accounts={accounts} transactions={transactions} />;
+      case 0: return <HomeTab accounts={accounts} transactions={transactions} physical={physical} investments={investments} onSyncBalances={syncBalances} onImportCSV={importCSV} fetchAllTransactions={fetchAllTransactions} />;      case 1: return <MoneyTab accounts={accounts} transactions={transactions} />;
       case 2: return <AddTab accounts={accounts} onAdd={fetchAll} />;
       case 3: return <GymTab physical={physical} onOpenModal={() => setIsActivityModalOpen(true)} />;      
       case 4: return <InvestTab investments={investments} onAdd={fetchAll} />;
@@ -2093,12 +1940,6 @@ export default function App() {
       })
     )
   );
-  // Save synced balances to localStorage
-  const balanceObj = {};
-  Object.entries(data).forEach(([account, balance]) => {
-    balanceObj[account] = parseFloat(balance);
-  });
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(balanceObj));
   fetchAll(); // refresh UI
 }, [fetchAll]);
 

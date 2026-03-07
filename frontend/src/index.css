@@ -983,3 +983,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cur
 .recharts-sector:focus {
   outline: none !important;
 }
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40% { transform: translateY(-10px); opacity: 1; }
+}

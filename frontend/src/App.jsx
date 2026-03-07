@@ -87,6 +87,24 @@ function formatDate(dateStr) {
   return `${d.getDate()}/${d.getMonth()+1}/${String(d.getFullYear()).slice(2)}`;
 }
 
+function LoadingScreen() {
+  return (
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: '1.5rem' }}>
+      <span className="logo-name" style={{ fontSize: '2rem' }}>DailyTrack</span>
+      <div style={{ display: 'flex', gap: '0.5rem' }}>
+        {[0, 1, 2].map(i => (
+          <div key={i} style={{
+            width: '8px', height: '8px', borderRadius: '50%',
+            background: 'var(--accent)',
+            animation: 'bounce 0.8s ease infinite',
+            animationDelay: `${i * 0.15}s`
+          }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function LoginPage({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -1957,6 +1975,7 @@ function InvestTab({ investments, onAdd }) {
 // ─── MAIN APP ───────────────────────────────────────────────────────────
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('dt_token'));
+  const [appLoading, setAppLoading] = useState(true);
   const [tab, setTab] = useState(0);
   const [accounts, setAccounts] = useState([]);
   const [transactions, setTransactions] = useState([]);
@@ -2058,6 +2077,7 @@ export default function App() {
   }, [allTransactionsLoaded]);
 
   const fetchAll = useCallback(async () => {
+    setAppLoading(true);
     try {
       // Fire ALL 4 requests in parallel to eliminate network waterfall
       const [acc, phy, inv, txRes] = await Promise.all([
@@ -2075,6 +2095,8 @@ export default function App() {
       setInvestments(inv);
     } catch(e) {
       console.error("API error — is the backend running?", e);
+    } finally {
+      setAppLoading(false);
     }
   }, []);
 
@@ -2197,6 +2219,7 @@ const importCSV = useCallback((csvText) => {
 }, [fetchAll]);
 
   if (!isLoggedIn) return <LoginPage onLogin={() => setIsLoggedIn(true)} />;
+  if (appLoading) return <LoadingScreen />;
 
     return (
     <div className="app">

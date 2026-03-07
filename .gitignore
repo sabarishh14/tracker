@@ -2,3 +2,5 @@ node_modules/
 __pycache__/
 .env*
 *.md*
+*.txt*
+firebase-credentials.json

@@ -13,10 +13,18 @@ from functools import wraps
 from dotenv import load_dotenv
 import jwt
 from datetime import datetime, timedelta, timezone
+import firebase_admin
+from firebase_admin import credentials, auth as firebase_auth
 
 # Load environment variables from .env.local file (or .env as fallback)
 load_dotenv('.env.local')
 load_dotenv('.env')
+
+# Initialize Firebase Admin
+firebase_cred = credentials.Certificate(os.getenv("FIREBASE_CREDENTIALS_PATH", "firebase-credentials.json"))
+firebase_admin.initialize_app(firebase_cred)
+
+ALLOWED_EMAILS = [e.strip() for e in os.getenv("ALLOWED_EMAILS", "").split(",")]
 
 # Load environment variables with validation
 API_SECRET_KEY = os.getenv("API_SECRET_KEY")
@@ -707,23 +715,33 @@ def sync_investments_to_sheets():
     except Exception as e:
         print(f"❌ Sheets Sync Error: {str(e)}")
         return jsonify({"success": False, "message": str(e)})
-    
-@app.route('/api/auth/login', methods=['POST'])
-def login():
-    data = request.json
-    username = data.get('username', '')
-    password = data.get('password', '')
 
-    if username != ADMIN_USER or password != ADMIN_PASS:
-        return jsonify({"success": False, "message": "Invalid credentials"}), 401
+@app.route('/api/auth/firebase-login', methods=['POST'])
+def firebase_login():
+    try:
+        id_token = request.json.get('id_token')
+        if not id_token:
+            return jsonify({"success": False, "message": "No token provided"}), 400
 
-    token = jwt.encode({
-        "sub": username,
-        "iat": datetime.now(timezone.utc),
-        "exp": datetime.now(timezone.utc) + timedelta(days=30)
-    }, JWT_SECRET, algorithm="HS256")
+        # Verify the Firebase token
+        decoded = firebase_auth.verify_id_token(id_token)
+        email = decoded.get('email')
 
-    return jsonify({"success": True, "token": token})
+        # Check if email is in your allowed list
+        if email not in ALLOWED_EMAILS:
+            return jsonify({"success": False, "message": f"Access denied for {email}"}), 403
+
+        # Issue our own JWT
+        token = jwt.encode({
+            "sub": email,
+            "iat": datetime.now(timezone.utc),
+            "exp": datetime.now(timezone.utc) + timedelta(days=30)
+        }, JWT_SECRET, algorithm="HS256")
+
+        return jsonify({"success": True, "token": token})
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 401
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

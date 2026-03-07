@@ -1,7 +1,3 @@
-cd backend
-pip install -r requirements.txt
-python app.py
+## DailyTrack - Track Daily 😡
 
-cd frontend
-npm install
-npm run dev
+A full-stack personal finance and lifestyle tracking system featuring real-time bank balance monitoring, transaction management with Google Sheets sync, investment portfolio tracking via Zerodha Kite API, and physical activity logging — secured with Firebase Google Authentication and a JWT-based backend API.

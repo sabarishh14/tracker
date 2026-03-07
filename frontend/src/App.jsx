@@ -194,6 +194,7 @@ function HomeTab({ accounts, transactions, physical, investments, onSyncBalances
   const [syncMsg, setSyncMsg] = useState('');
   const fileRef = useRef(null);
   const [showBalances, setShowBalances] = useState(false); // <-- Default to hidden for privacy
+  const [showInvestments, setShowInvestments] = useState(false);
 
   // Trigger the background fetch when looking at the money section
   useEffect(() => {
@@ -382,14 +383,24 @@ function HomeTab({ accounts, transactions, physical, investments, onSyncBalances
       
       {/* Investments */}
       <section className="section">
-        <h2 className="section-title">📊 Investment Portfolio</h2>
-        <div className="inv-summary-grid">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
+          <h2 className="section-title" style={{ margin: 0, flex: 'none', display: 'flex' }}>📊 Investment Portfolio</h2>
+          <button
+            onClick={() => setShowInvestments(!showInvestments)}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.1rem', padding: 0, lineHeight: 1, flexShrink: 0 }}
+            title={showInvestments ? 'Hide' : 'Show'}
+          >
+            {showInvestments ? '🙈' : '👁️'}
+          </button>
+          <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
+        </div>
+      <div className="inv-summary-grid">
           {[
             { label: "Date", val: latestDate, color: "text3" },
-            { label: "Invested", val: fmt(totalInvested), color: null },
-            { label: "Current Value", val: fmt(totalCurrent), color: null },
-            { label: "Returns ₹", val: fmt(totalReturn), color: totalReturn >= 0 ? "pos" : "neg" },
-            { label: "Returns %", val: fmtPct(totalRetPct), color: totalRetPct >= 0 ? "pos" : "neg" },
+           { label: "Invested", val: showInvestments ? fmt(totalInvested) : '₹ ••••••', color: null },
+            { label: "Current Value", val: showInvestments ? fmt(totalCurrent) : '₹ ••••••', color: null },
+            { label: "Returns ₹", val: showInvestments ? fmt(totalReturn) : '₹ ••••••', color: totalReturn >= 0 ? "pos" : "neg" },
+            { label: "Returns %", val: showInvestments ? fmtPct(totalRetPct) : '••••', color: totalRetPct >= 0 ? "pos" : "neg" },
           ].map(card => (
             <div className="inv-card" key={card.label}>
               <div className="inv-label">{card.label}</div>
@@ -512,8 +523,10 @@ function MoneyTab({ accounts, transactions }) {
 
   // Table filters - multi-select
   const [filterAccounts, setFilterAccounts] = useState(new Set());
-  const [filterDate, setFilterDate] = useState("");
-  const [filterDateDebounced, setFilterDateDebounced] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
+  const [filterDateFromDebounced, setFilterDateFromDebounced] = useState("");
+  const [filterDateToDebounced, setFilterDateToDebounced] = useState("");
   const [filterMonths, setFilterMonths] = useState(new Set([currentMonthLabel]));
   const [filterTypes, setFilterTypes] = useState(new Set());
   const [filterHeadings, setFilterHeadings] = useState(new Set());
@@ -548,9 +561,31 @@ function MoneyTab({ accounts, transactions }) {
 
   // Debounce filter inputs (300ms delay)
   useEffect(() => {
-    const timer = setTimeout(() => setFilterDateDebounced(filterDate), 300);
+    const timer = setTimeout(() => setFilterDateFromDebounced(filterDateFrom), 300);
     return () => clearTimeout(timer);
-  }, [filterDate]);
+  }, [filterDateFrom]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setFilterDateToDebounced(filterDateTo), 300);
+    return () => clearTimeout(timer);
+  }, [filterDateTo]);
+
+  useEffect(() => {
+    if (!filterDateFromDebounced) return;
+    const from = new Date(filterDateFromDebounced);
+    const to = filterDateToDebounced ? new Date(filterDateToDebounced) : from;
+    
+    // Collect all months between from and to
+    const months = new Set();
+    const cursor = new Date(from.getFullYear(), from.getMonth(), 1);
+    const end = new Date(to.getFullYear(), to.getMonth(), 1);
+    while (cursor <= end) {
+      const label = `${cursor.toLocaleString('default', { month: 'long' })} ${cursor.getFullYear()}`;
+      months.add(label);
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+    setFilterMonths(months);
+  }, [filterDateFromDebounced, filterDateToDebounced]);
 
   useEffect(() => {
     const timer = setTimeout(() => setFilterDescDebounced(filterDesc), 300);
@@ -625,7 +660,13 @@ function MoneyTab({ accounts, transactions }) {
       const dateStr = t.date || '';
       const capitalizedType = t.type ? t.type.charAt(0).toUpperCase() + t.type.slice(1) : '';
       const accountMatch = filterAccounts.size === 0 || filterAccounts.has(t.account);
-      const dateMatch = !filterDateDebounced || dateStr.includes(filterDateDebounced);
+      const dateMatch = (() => {
+        if (!filterDateFromDebounced) return true;
+        const txDate = new Date(dateStr);
+        const from = new Date(filterDateFromDebounced);
+        const to = filterDateToDebounced ? new Date(filterDateToDebounced) : from;
+        return txDate >= from && txDate <= to;
+      })();
       const monthMatch = filterMonths.size === 0 || filterMonths.has(ml);
       const typeMatch = filterTypes.size === 0 || filterTypes.has(capitalizedType);
       const headingMatch = filterHeadings.size === 0 || filterHeadings.has(t.heading);
@@ -662,7 +703,7 @@ function MoneyTab({ accounts, transactions }) {
         return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
       }
     });
-  }, [transactions, filterAccounts, filterDateDebounced, filterMonths, filterTypes, filterHeadings, filterDescDebounced, sortBy, sortDir]);
+  }, [transactions, filterAccounts, filterDateFromDebounced, filterDateToDebounced, filterMonths, filterTypes, filterHeadings, filterDescDebounced, sortBy, sortDir]);
 
   // Paginate the filtered results
   const totalPages = Math.ceil(tableFiltered.length / rowsPerPage);
@@ -675,7 +716,7 @@ function MoneyTab({ accounts, transactions }) {
   // Reset to page 0 when filters change
   useEffect(() => {
     setCurrentPage(0);
-  }, [filterAccounts, filterDateDebounced, filterMonths, filterTypes, filterHeadings, filterDescDebounced]);
+  }, [filterAccounts, filterDateFromDebounced, filterDateToDebounced, filterMonths, filterTypes, filterHeadings, filterDescDebounced]);
 
   const PIE_COLORS = ["#6366f1","#8b5cf6","#d946ef","#ec4899","#f43f5e","#f97316","#eab308","#84cc16","#22c55e","#10b981","#14b8a6","#06b6d4"];
 
@@ -1148,13 +1189,26 @@ function MoneyTab({ accounts, transactions }) {
             onToggle={setFilterHeadings}
             dropdownKey="tableHeading"
           />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '999px', padding: '0.45rem 0.875rem' }}>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text2)' }}>📅</span>
           <input
             type="date"
-            className="inp"
-            value={filterDate}
-            onChange={e => setFilterDate(e.target.value)}
-            style={{ fontSize: '0.8rem', width: '160px', padding: '0.45rem 0.75rem', borderRadius: '999px' }}
+            value={filterDateFrom}
+            onChange={e => setFilterDateFrom(e.target.value)}
+            style={{ background: 'transparent', border: 'none', outline: 'none', color: filterDateFrom ? 'var(--text)' : 'var(--text2)', fontSize: '0.8rem', fontFamily: "'DM Sans', sans-serif", width: filterDateFrom ? '100px' : '90px', cursor: 'pointer' }}
           />
+          <span style={{ fontSize: '0.75rem', color: 'var(--text2)' }}>→</span>
+          <input
+            type="date"
+            value={filterDateTo}
+            onChange={e => setFilterDateTo(e.target.value)}
+            min={filterDateFrom}
+            style={{ background: 'transparent', border: 'none', outline: 'none', color: filterDateTo ? 'var(--text)' : 'var(--text2)', fontSize: '0.8rem', fontFamily: "'DM Sans', sans-serif", width: filterDateTo ? '100px' : '90px', cursor: 'pointer' }}
+          />
+          {(filterDateFrom || filterDateTo) && (
+            <button onClick={() => { setFilterDateFrom(''); setFilterDateTo(''); }} style={{ background: 'none', border: 'none', color: 'var(--text2)', cursor: 'pointer', fontSize: '0.9rem', padding: 0, lineHeight: 1 }}>×</button>
+          )}
+        </div>
           <input
             className="inp"
             placeholder="🔍 Description"
@@ -1162,7 +1216,7 @@ function MoneyTab({ accounts, transactions }) {
             onChange={e => setFilterDesc(e.target.value)}
             style={{ fontSize: '0.8rem', width: '200px', padding: '0.45rem 0.75rem', borderRadius: '999px' }}
           />
-          {(filterAccounts.size > 0 || filterTypes.size > 0 || filterMonths.size > 0 || filterHeadings.size > 0 || filterDate || filterDesc) && (
+          {(filterAccounts.size > 0 || filterTypes.size > 0 || filterMonths.size > 0 || filterHeadings.size > 0 || filterDateFrom || filterDateTo || filterDesc) && (
             <button 
               className="filter-chip" 
               onClick={() => {
@@ -1170,7 +1224,8 @@ function MoneyTab({ accounts, transactions }) {
                 setFilterTypes(new Set());
                 setFilterMonths(new Set());
                 setFilterHeadings(new Set());
-                setFilterDate("");
+                setFilterDateFrom("");
+                setFilterDateTo("");
                 setFilterDesc("");
               }}
               style={{ border: '1px dashed var(--neg)', color: 'var(--neg)', background: 'transparent' }}

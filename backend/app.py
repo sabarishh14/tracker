@@ -330,7 +330,7 @@ def bulk_transactions():
 
             # Update account balance
             account = Account.query.filter_by(account=data['account']).first()
-            if account and account.balance_tracked:
+            if account and account.balance_tracked and data['account'] != "CC-PINNACLE 6360":
                 if data['type'].lower() == "credit":
                     account.balance += amount
                 elif data['type'].lower() == "debit":
@@ -432,8 +432,8 @@ def add_transaction():
             # --- NEW: Automatically Update Account Balance ---
             account_record = Account.query.filter_by(account=acc_name).first()
             
-            # Only update if the account exists and has balance tracking enabled
-            if account_record and account_record.balance_tracked:
+            # Only update if the account exists and has balance tracking enabled (except CC-PINNACLE 6360)
+            if account_record and account_record.balance_tracked and acc_name != "CC-PINNACLE 6360":
                 if tx_type == 'credit':
                     account_record.balance += amount
                 elif tx_type in ['debit', 'savings']:
@@ -459,7 +459,7 @@ def delete_transaction(tid):
 
     account = Account.query.filter_by(account=tx.account).first()
 
-    if account and account.balance_tracked:
+    if account and account.balance_tracked and tx.account != "CC-PINNACLE 6360":
         if tx.type.lower() == "credit":
             account.balance -= tx.amount
         elif tx.type.lower() == "debit":

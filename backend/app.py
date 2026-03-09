@@ -479,6 +479,53 @@ def delete_transaction(tid):
 
     return jsonify({"success": True})
 
+@app.route('/api/transactions/<int:tid>', methods=['PUT'])
+@require_api_key
+def edit_transaction(tid):
+    try:
+        data = request.json
+        tx = Transaction.query.filter_by(id=tid).first()
+
+        if not tx:
+            return jsonify({"success": False, "message": "Transaction not found"}), 404
+
+        # 1. REVERT the old transaction's impact on the balance
+        old_account = Account.query.filter_by(account=tx.account).first()
+        if old_account and old_account.balance_tracked and tx.account != "CC-PINNACLE 6360":
+            if tx.type == 'credit':
+                old_account.balance -= tx.amount
+            elif tx.type in ['debit', 'savings']:
+                old_account.balance += tx.amount
+
+        # 2. UPDATE the transaction fields
+        date_obj = datetime.strptime(data['date'], '%Y-%m-%d')
+        tx.date = date_obj
+        tx.month = date_obj.replace(day=1)
+        tx.type = data['type']
+        tx.heading = data['heading']
+        tx.description = data.get('description', '')
+        tx.amount = float(data['amount'])
+        tx.account = data['account']
+        
+        # Mark as unsynced so it gets pushed to Sheets again
+        tx.synced = False 
+
+        # 3. APPLY the new transaction's impact on the balance
+        new_account = Account.query.filter_by(account=tx.account).first()
+        if new_account and new_account.balance_tracked and tx.account != "CC-PINNACLE 6360":
+            if tx.type == 'credit':
+                new_account.balance += tx.amount
+            elif tx.type in ['debit', 'savings']:
+                new_account.balance -= tx.amount
+
+        db.session.commit()
+        return jsonify({"success": True, "message": "Transaction updated successfully!"})
+
+    except Exception as e:
+        print(f"❌ Error updating transaction: {str(e)}")
+        db.session.rollback() # Safely undo if something breaks
+        return jsonify({"success": False, "message": str(e)})
+    
 # ---- PHYSICAL ACTIVITY ----
 @app.route('/api/physical', methods=['GET'])
 @require_api_key  # <-- Add this line to protect the route

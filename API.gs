@@ -93,6 +93,9 @@ function doPost(e) {
 
     // --- TRANSACTIONS LOGIC ---
     if (type === "transactions") {
+      let errors = []; // Keep track of missing sheets
+      let inserted = 0;
+
       records.forEach(tx => {
         const { date, month, type, heading, description, amount, account } = tx;
         const id = tx.id || Utilities.getUuid();
@@ -102,13 +105,17 @@ function doPost(e) {
         let sheetName = account;
         if (account === "Cash") {
           sheetName = "IDBI";
-        } else if (account.startsWith("CC")) {
+        } else if (account && account.startsWith("CC")) {
           sheetName = "CreditCard";
         }
 
         const sheet = ss.getSheetByName(sheetName);
-        if (!sheet) return;
+        if (!sheet) {
+          errors.push(sheetName); // Log the missing sheet
+          return; // Skip this one, but continue the loop
+        }
 
+        inserted++;
         const lastUsed = sheet.getLastRow();
         const colA = sheet.getRange(1, 1, lastUsed).getValues();
         let lastRow = 0;
@@ -128,7 +135,19 @@ function doPost(e) {
           sheet.getRange(newRow, 8).setValue(account);
         }
       });
-      return ContentService.createTextOutput(JSON.stringify({status: "success", message: `${records.length} transactions inserted`})).setMimeType(ContentService.MimeType.JSON);
+      if (errors.length > 0) {
+        // Return a partial success message warning you which accounts failed
+        const uniqueErrors = [...new Set(errors)].join(", ");
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "success", 
+          message: `${inserted} inserted. Skipped missing sheets: ${uniqueErrors}`
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success", 
+        message: `${inserted} transactions inserted`
+      })).setMimeType(ContentService.MimeType.JSON);
     } 
     
     // --- INVESTMENTS LOGIC ---

@@ -2103,10 +2103,10 @@ export default function App() {
   const sidebarMinimized = sidebarWidth < 140;
 
   // Load all transactions (for MoneyTab) - lazy loaded when needed
+  // Load all transactions (for MoneyTab) - lazy loaded when needed
   const fetchAllTransactions = useCallback(async () => {
     if (allTransactionsLoaded || !getToken()) return;
     try {
-      let allTx = [];
       let offset = 0;
       let hasMore = true;
       
@@ -2115,14 +2115,24 @@ export default function App() {
         const res = await fetch(`${API}/transactions?limit=500&offset=${offset}`, { 
           headers: { 'Authorization': `Bearer ${getToken()}` } 
         }).then(r => r.json());
-        if (!res.transactions) break; // stop if response is invalid (e.g. 401)
-        allTx = allTx.concat(res.transactions);
+        
+        if (!res.transactions || res.transactions.length === 0) break;
+        
+        // PROGRESSIVE UPDATE: Show data immediately as each batch arrives!
+        if (getToken()) {
+          setTransactions(prev => {
+            // Filter out duplicates just in case React fires this twice
+            const existingIds = new Set(prev.map(t => t.id));
+            const newTxs = res.transactions.filter(t => !existingIds.has(t.id));
+            return [...prev, ...newTxs];
+          });
+        }
+        
         hasMore = res.hasMore;
         offset += 500;
       }
       
-      if (getToken()) { // only update state if still logged in
-        setTransactions(allTx);
+      if (getToken()) { 
         setAllTransactionsLoaded(true);
       }
     } catch(e) {

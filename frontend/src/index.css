@@ -56,7 +56,13 @@ html, body, #root { height: 100%; width: 100%; }
 body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; overflow: hidden; }
 
 /* ── LAYOUT ─── */
-.app { display: flex; height: 100vh; width: 100vw; overflow: hidden; }
+.app { 
+  display: flex; 
+  height: 100vh; /* Fallback */
+  height: 100dvh; /* 'dvh' (Dynamic Viewport Height) adapts to mobile address bars! */
+  width: 100vw; 
+  overflow: hidden; 
+}
 
 /* ── SIDEBAR ─── */
 .sidebar {
@@ -798,7 +804,15 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cur
   
   /* Prevent the page content from getting hidden behind the new bottom bar */
   .page-body { 
-    padding-bottom: 140px !important; /* Increased to clear phone safe areas */
+    padding-bottom: 20px !important; 
+  }
+  
+  /* This pseudo-element forces the browser to add scrollable empty space at the very bottom */
+  .page-body::after {
+    content: '';
+    display: block;
+    height: 110px; /* Space for the bottom nav bar + iOS home indicator */
+    width: 100%;
   }
 }
 

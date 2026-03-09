@@ -261,27 +261,26 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-s
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  overflow-x: auto; /* Enable scroll before it gets cut */
+  overflow-x: auto;
   overflow-y: hidden;
 }
 
-/* Force a minimum width so Category & Description don't disappear */
-/* Add this right after .tx-row */
 .tx-table-head, .tx-row {
-  min-width: 100%;
-  width: max-content; /* Forces the row to stretch so the scrollbar actually works! */
-}
-
-.tx-table-head {
+  min-width: 1160px; /* Increased to permanently safely wrap the new 250px Description column! */
+  width: 100%; 
   display: grid;
   gap: 0;
   padding: 0;
+}
+
+.tx-table-head {
   background: rgba(255,255,255,0.03);
   border-bottom: 1px solid var(--border);
   font-size: 0.68rem; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.5px;
   color: var(--text2);
 }
+
 .tx-col-header {
   display: flex;
   align-items: center;
@@ -293,93 +292,72 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-s
   transition: background 0.15s, color 0.15s;
   border-right: 1px solid rgba(255,255,255,0.04);
 }
-.tx-col-header:last-child { border-right: none; }
+
+.tx-col-header:last-child { 
+  border-right: none; 
+}
+
 .tx-col-header:hover {
   background: rgba(99,102,241,0.08);
   color: var(--text3);
 }
-.sort-indicator {
-  font-size: 0.75rem;
-  color: var(--accent);
-  font-weight: 700;
-}
+
+.sort-indicator { font-size: 0.75rem; color: var(--accent); font-weight: 700; }
+
 .col-resize {
-  position: absolute;
-  right: 0;
-  top: 0;
-  width: 4px;
-  height: 100%;
-  cursor: col-resize;
-  background: transparent;
-  transition: background 0.15s;
+  position: absolute; right: 0; top: 0; width: 4px; height: 100%;
+  cursor: col-resize; background: transparent; transition: background 0.15s;
 }
-.col-resize:hover {
-  background: var(--accent);
-  opacity: 0.6;
-}
+.col-resize:hover { background: var(--accent); opacity: 0.6; }
+
 .tx-row {
-  display: grid;
-  gap: 0;
-  padding: 0;
   align-items: center;
   border-bottom: 1px solid rgba(255,255,255,0.04);
   transition: background 0.15s;
   cursor: default;
 }
+
 .tx-row:last-child { border-bottom: none; }
 .tx-row:hover { background: rgba(99,102,241,0.06); }
 .tx-row:nth-child(even) { background: rgba(255,255,255,0.012); }
 .tx-row:nth-child(even):hover { background: rgba(99,102,241,0.06); }
+
 .tx-row > span {
   padding: 0.875rem 1.5rem;
   display: flex;
   align-items: center;
   border-right: 1px solid rgba(255,255,255,0.04);
+  min-width: 0; /* CRITICAL: Allows description text to truncate safely */
 }
+
 .tx-row > span:last-child { 
   border-right: none; 
-  padding-right: 2.5rem; /* Adds beautiful blank space after descriptions */
-}
-.tx-col-header:last-child {
-  padding-right: 2.5rem; 
-  min-width: 300px; /* Forces the header background to stretch exactly identically to the rows below it! */
 }
 
 .tx-date { font-size: 0.82rem; color: var(--text3); font-weight: 500; font-variant-numeric: tabular-nums; }
 .tx-account { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text); font-weight: 500; white-space: nowrap; }
 .tx-type-cell { display: flex; align-items: center; justify-content: center; }
 .tx-badge {
-  display: inline-flex; align-items: center;
-  padding: 0.35rem 0.65rem;
-  border-radius: 6px;
-  font-size: 0.72rem; font-weight: 600;
-  text-transform: capitalize; letter-spacing: 0.2px;
+  display: inline-flex; align-items: center; padding: 0.35rem 0.65rem; border-radius: 6px;
+  font-size: 0.72rem; font-weight: 600; text-transform: capitalize; letter-spacing: 0.2px;
 }
 .tx-badge.debit { background: rgba(248,113,113,0.12); color: #fca5a5; }
 .tx-badge.credit { background: rgba(52,211,153,0.12); color: #86efac; }
 .tx-badge.savings { background: rgba(99,102,241,0.12); color: #a5b4fc; }
-.tx-badge.investment { 
-  background: rgba(59, 130, 246, 0.12); 
-  color: #93c5fd; 
-}
+.tx-badge.investment { background: rgba(59, 130, 246, 0.12); color: #93c5fd; }
 .tx-month { font-size: 0.82rem; color: var(--text3); font-weight: 500; white-space: nowrap; }
 .tx-amount { font-family: 'Syne', sans-serif; font-size: 0.92rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tx-heading { font-size: 0.85rem; color: var(--text); font-weight: 500; }
+
 .tx-desc { 
-  font-size: 0.8rem; 
-  color: var(--text2); 
-  white-space: nowrap; 
-  overflow: hidden; 
-  text-overflow: ellipsis; 
-  min-width: 300px; /* Ensures the text has plenty of room before adding the ... */
+  font-size: 0.8rem; color: var(--text2); white-space: nowrap; 
+  overflow: hidden; text-overflow: ellipsis; display: block; 
 }
 
 .tx-stats-bar {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 0.875rem 1.5rem;
-  background: rgba(99,102,241,0.05);
-  border-top: 1px solid rgba(99,102,241,0.12);
-  font-size: 0.82rem; color: var(--text2);
+  padding: 0.875rem 1.5rem; background: rgba(99,102,241,0.05);
+  border-top: 1px solid rgba(99,102,241,0.12); font-size: 0.82rem; color: var(--text2);
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
@@ -709,34 +687,26 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cur
   .gym-layout, .invest-layout, .add-layout, .money-top { grid-template-columns: 1fr; }
   .gym-form-card, .invest-form-card { width: 100%; }
   
-  /* Force tablet tables to scroll and keep backgrounds intact! */
   .tx-table-wrap, .data-table { 
     overflow-x: auto; 
     -webkit-overflow-scrolling: touch; 
   }
   
-  /* Keep transactions table standard */
-  .tx-table-head, .tx-row { 
-    min-width: 100%; 
-    width: max-content; 
-  }
+  /* Removed the broken row-width overrides here! */
   
-  /* Force Gym and Invest tables to be wide enough so columns don't squish */
   .table-header, .table-row { 
     min-width: 850px; 
     width: 100%; 
   }
   
-  /* Force both the description rows AND the header to share the same width */
   .tx-desc, .tx-col-header:last-child { 
-    min-width: 250px; 
     white-space: normal; 
     line-height: 1.4; 
   }
 }
 
 @media (max-width: 768px) {
-  .sidebar { display: none; } /* We will replace this trap with a bottom nav in Phase 2! */
+  .sidebar { display: none; }
   .page-body { padding: 1rem; }
   .accounts-grid { grid-template-columns: repeat(2, 1fr); }
   .inv-summary-grid { grid-template-columns: repeat(2, 1fr); }
@@ -744,42 +714,31 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cur
   .topbar { padding: 0 1.25rem; height: 56px; }
   .topbar-title { font-size: 1rem; }
   
-  /* Make tables scroll horizontally without cutting off backgrounds! */
   .tx-table-wrap, .data-table { 
     overflow-x: auto; 
     -webkit-overflow-scrolling: touch; 
   }
   
-  /* 'width: max-content' forces the background color to stretch the entire scrollable length */
-  /* Force transaction rows to have identical widths so alternating backgrounds stretch perfectly */
-  .tx-table-head, .tx-row { 
-    min-width: 1050px; 
-    width: max-content; /* Changed from 100% so the background doesn't cut off early */
-  }
+  /* Removed the broken row-width overrides here! */
   
-  /* Force Gym and Invest tables to be wide enough so columns don't squish */
   .table-header, .table-row { 
     min-width: 850px; 
     width: 100%; 
   }
   
-  /* Force both the description rows AND the header to share the same width */
   .tx-desc, .tx-col-header:last-child { 
-    min-width: 250px; 
     white-space: normal; 
     line-height: 1.4; 
   }
   
-  /* Fix filter bar wrapping */
   .filter-bar { gap: 0.5rem; justify-content: space-between; }
   .filter-chip { flex: 1 1 calc(50% - 0.5rem); justify-content: center; }
 
-  /* Show and style the bottom app bar */
   .mobile-bottom-nav {
     display: flex; position: fixed; bottom: 0; left: 0; width: 100%;
     background: var(--bg2); border-top: 1px solid var(--border);
     z-index: 100; height: 65px; justify-content: space-around; align-items: center;
-    padding-bottom: env(safe-area-inset-bottom); /* Fix for iOS home indicator */
+    padding-bottom: env(safe-area-inset-bottom); 
   }
 
   .mobile-nav-item {
@@ -790,43 +749,27 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cur
 
   .mobile-nav-item.active { color: var(--accent); }
   
-  /* Make the "Add" button pop out of the nav bar */
   .mobile-nav-item.add-item { color: var(--text); transform: translateY(-15px); }
   .mobile-nav-item.add-item .mobile-nav-icon {
     background: linear-gradient(135deg, var(--accent), var(--accent3));
     color: white; width: 48px; height: 48px; border-radius: 50%; 
     display: flex; align-items: center; justify-content: center;
     font-size: 1.2rem; box-shadow: 0 4px 15px rgba(99,102,241,0.4); 
-    border: 4px solid var(--bg); /* Creates a cutout effect */
+    border: 4px solid var(--bg); 
   }
   
   .mobile-nav-icon { font-size: 1.25rem; }
   
-  /* Prevent the page content from getting hidden behind the new bottom bar */
-  .page-body { 
-    padding-bottom: 20px !important; 
-  }
-  
-  /* This pseudo-element forces the browser to add scrollable empty space at the very bottom */
-  .page-body::after {
-    content: '';
-    display: block;
-    height: 110px; /* Space for the bottom nav bar + iOS home indicator */
-    width: 100%;
-  }
+  .page-body { padding-bottom: 20px !important; }
+  .page-body::after { content: ''; display: block; height: 110px; width: 100%; }
 }
 
 @media (max-width: 480px) {
   .accounts-grid { grid-template-columns: 1fr; }
   .inv-summary-grid { grid-template-columns: 1fr; }
-  
-  /* Stack the physical activity card nicely */
   .phys-home-card { flex-direction: column; text-align: center; gap: 1rem; padding: 1.25rem; }
   .phys-controls { margin: 0 auto; justify-content: center; width: 100%; }
-  
-  /* Make buttons full width for thumbs */
   .action-btn { width: 100%; justify-content: center; margin-bottom: 0.5rem; }
-  
 }
 
 /* ── BULK TRANSACTION TABLE ─── */
@@ -1027,4 +970,44 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cur
 @keyframes bounce {
   0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
   40% { transform: translateY(-10px); opacity: 1; }
+}
+
+/* ── TRANSACTION ACTION BUTTONS ─── */
+.tx-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end; /* perfectly aligns to the right edge */
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.action-icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--text3);
+  font-size: 1.1rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.action-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  transform: translateY(-2px);
+}
+
+.action-icon-btn.edit:hover {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent);
+}
+
+.action-icon-btn.delete:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
 }

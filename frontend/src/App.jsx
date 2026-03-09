@@ -509,8 +509,9 @@ function CustomPieTooltip({ active, payload, pieData }) {
 }
 
 // ─── MONEY TAB ───────────────────────────────────────────────────────────
-function MoneyTab({ accounts, transactions }) {
+function MoneyTab({ accounts, transactions, onRefresh }) {
   const [expanded, setExpanded] = useState(false);
+  const [editingTx, setEditingTx] = useState(null);
   const dropdownRef = useRef(null);
   
   const currentMonthLabel = `${new Date().toLocaleString('default', { month: 'long' })} ${new Date().getFullYear()}`;
@@ -544,8 +545,8 @@ function MoneyTab({ accounts, transactions }) {
   const [currentPage, setCurrentPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   
-  // Column widths for resizing
-  const [colWidths, setColWidths] = useState({ date: 90, account: 230, type: 110, month: 110, amount: 130, heading: 140, desc: 0 });
+  /// Change actions: 90 to actions: 130
+  const [colWidths, setColWidths] = useState({ date: 90, account: 230, type: 110, month: 110, amount: 130, heading: 140, desc: 0, actions: 100 });
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -842,6 +843,23 @@ function MoneyTab({ accounts, transactions }) {
     );
   };
 
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this transaction? This will also update your account balance.")) return;
+    try {
+      const res = await fetch(`${API}/transactions/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
+      if (res.ok) {
+        onRefresh(); // Refresh balances and transactions!
+      } else {
+        alert("Failed to delete transaction.");
+      }
+    } catch (e) {
+      alert("Error deleting: " + e.message);
+    }
+  };
+  
   return (
     <div>
       {/* Spending Analyzer Section - Collapsible */}
@@ -1329,7 +1347,7 @@ function MoneyTab({ accounts, transactions }) {
 
         {/* Transactions List */}
         <div className="tx-table-wrap">
-          <div className="tx-table-head" style={{ gridTemplateColumns: `${colWidths.date}px ${colWidths.account}px ${colWidths.type}px ${colWidths.month}px ${colWidths.amount}px ${colWidths.heading}px 1fr` }}>
+          <div className="tx-table-head" style={{ gridTemplateColumns: `${colWidths.date}px ${colWidths.account}px ${colWidths.type}px ${colWidths.month}px ${colWidths.amount}px ${colWidths.heading}px minmax(250px, 1fr) ${colWidths.actions}px` }}>
             <div className="tx-col-header" onClick={() => handleSortClick('date')}>
               <span>Date</span>
               {sortBy === 'date' && <span className="sort-indicator">{sortDir === 'asc' ? '↑' : '↓'}</span>}
@@ -1364,13 +1382,16 @@ function MoneyTab({ accounts, transactions }) {
               <span>Description</span>
               {sortBy === 'desc' && <span className="sort-indicator">{sortDir === 'asc' ? '↑' : '↓'}</span>}
             </div>
+            <div className="tx-col-header">
+              <span>Actions</span>
+            </div>
           </div>
           {tableFiltered.length > 0 ? (
             paginatedRows.map((t, i) => {
               const d = new Date(t.date);
               const monthLabel = d.toLocaleString('default', { month: 'short', year: '2-digit' });
               return (
-                <div key={i} className="tx-row" style={{ gridTemplateColumns: `${colWidths.date}px ${colWidths.account}px ${colWidths.type}px ${colWidths.month}px ${colWidths.amount}px ${colWidths.heading}px 1fr` }}>
+                <div key={i} className="tx-row" style={{ gridTemplateColumns: `${colWidths.date}px ${colWidths.account}px ${colWidths.type}px ${colWidths.month}px ${colWidths.amount}px ${colWidths.heading}px minmax(250px, 1fr) ${colWidths.actions}px` }}>
                   <span className="tx-date">{formatDate(t.date)}</span>
                   <span className="tx-account">
                     <span>{getBankEmoji(t.account)}</span>
@@ -1383,6 +1404,10 @@ function MoneyTab({ accounts, transactions }) {
                   </span>
                   <span className="tx-heading">{t.heading}</span>
                   <span className="tx-desc">{t.description || '—'}</span>
+                  <span className="tx-actions">
+                    <button className="action-icon-btn edit" onClick={() => setEditingTx(t)} title="Edit">✏️</button>
+                    <button className="action-icon-btn delete" onClick={() => handleDelete(t.id)} title="Delete">🗑️</button>
+                  </span>
                 </div>
               );
             })
@@ -1391,6 +1416,14 @@ function MoneyTab({ accounts, transactions }) {
           )}
         </div>
       </section>
+
+      {editingTx && (
+        <EditTransactionModal 
+          tx={editingTx} 
+          onClose={() => setEditingTx(null)}  
+          onRefresh={onRefresh} 
+        />
+      )}
     </div>
   );
 }
@@ -1622,6 +1655,102 @@ function AddTransactionModal({ accounts, transactions, onAdd, onClose }) {
               {loading ? "Saving..." : success ? "✅ Saved!" : `💾 Save (${rows.length})`}
             </button>
           </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditTransactionModal({ tx, onClose, onRefresh }) {
+  const [form, setForm] = useState({
+    date: tx.date ? new Date(tx.date).toISOString().split('T')[0] : '',
+    account: tx.account,
+    type: tx.type,
+    heading: tx.heading,
+    amount: tx.amount,
+    description: tx.description || ''
+  });
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const updateField = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+
+  const submit = async () => {
+    if (!form.amount || isNaN(form.amount) || !form.heading.trim()) {
+      return alert("Missing a valid amount or category.");
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/transactions/${tx.id}`, {
+        method: "PUT", 
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` }, 
+        body: JSON.stringify({ ...form, amount: parseFloat(form.amount) }),
+      });
+      if (res.ok) {
+        onRefresh(); 
+        setSuccess(true);
+        setTimeout(() => { setSuccess(false); onClose(); }, 1200);
+      } else {
+        alert("Failed to update transaction.");
+      }
+    } catch (e) {
+      alert("Network error: " + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-content bulk-modal" style={{ maxWidth: '600px' }} onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-title">✏️ Edit Transaction</div>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body" style={{ padding: '1.5rem' }}>
+          
+          <div className="bulk-grid bulk-row" style={{ gridTemplateColumns: '1fr 1fr', gap: '1rem', padding: '1rem', background: 'var(--bg2)', border: 'none' }}>
+            <div className="form-group">
+              <label style={{ fontSize: '0.75rem', color: 'var(--text2)', marginBottom: '4px' }}>Account</label>
+              <select className="bulk-sel" style={{ background: 'var(--bg3)', padding: '0.75rem' }} value={form.account} onChange={e => updateField('account', e.target.value)}>
+                {Object.keys(BANKS).map(b => <option key={b} value={b}>{BANKS[b].emoji} {b}</option>)}
+              </select>
+            </div>
+            
+            <div className="form-group">
+              <label style={{ fontSize: '0.75rem', color: 'var(--text2)', marginBottom: '4px' }}>Date</label>
+              <input type="date" className="bulk-inp" style={{ background: 'var(--bg3)', padding: '0.75rem' }} value={form.date} onChange={e => updateField('date', e.target.value)} />
+            </div>
+            
+            <div className="form-group">
+              <label style={{ fontSize: '0.75rem', color: 'var(--text2)', marginBottom: '4px' }}>Type</label>
+              <select className="bulk-sel" style={{ background: 'var(--bg3)', padding: '0.75rem' }} value={form.type} onChange={e => updateField('type', e.target.value)}>
+                <option value="debit">🔴 Debit</option>
+                <option value="credit">🟢 Credit</option>
+                <option value="savings">💰 Savings</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label style={{ fontSize: '0.75rem', color: 'var(--text2)', marginBottom: '4px' }}>Amount (₹)</label>
+              <input type="number" className="bulk-inp" style={{ background: 'var(--bg3)', padding: '0.75rem' }} value={form.amount} onChange={e => updateField('amount', e.target.value)} />
+            </div>
+
+            <div className="form-group" style={{ gridColumn: 'span 2' }}>
+              <label style={{ fontSize: '0.75rem', color: 'var(--text2)', marginBottom: '4px' }}>Category</label>
+              <AutocompleteInput value={form.heading} onChange={val => updateField('heading', val)} options={CATEGORIES} placeholder="Category" />
+            </div>
+            
+            <div className="form-group" style={{ gridColumn: 'span 2' }}>
+              <label style={{ fontSize: '0.75rem', color: 'var(--text2)', marginBottom: '4px' }}>Note</label>
+              <input type="text" className="bulk-inp" style={{ background: 'var(--bg3)', padding: '0.75rem' }} value={form.description} onChange={e => updateField('description', e.target.value)} placeholder="Optional note..." />
+            </div>
+          </div>
+
+          <button className={`submit-btn ${success ? 'success' : ''}`} onClick={submit} disabled={loading} style={{ width: '100%', marginTop: '1.5rem' }}>
+            {loading ? "Saving..." : success ? "✅ Updated!" : "Save Changes"}
+          </button>
 
         </div>
       </div>
@@ -2103,7 +2232,6 @@ export default function App() {
   const sidebarMinimized = sidebarWidth < 140;
 
   // Load all transactions (for MoneyTab) - lazy loaded when needed
-  // Load all transactions (for MoneyTab) - lazy loaded when needed
   const fetchAllTransactions = useCallback(async () => {
     if (allTransactionsLoaded || !getToken()) return;
     try {
@@ -2179,7 +2307,8 @@ export default function App() {
 
   const renderTab = () => {
     switch(tab) {
-      case 0: return <HomeTab accounts={accounts ?? []} transactions={transactions ?? []} physical={physical ?? []} investments={investments ?? []} onSyncBalances={syncBalances} onImportCSV={importCSV} fetchAllTransactions={fetchAllTransactions} />;      case 1: return <MoneyTab accounts={accounts} transactions={transactions} />;
+      case 0: return <HomeTab accounts={accounts ?? []} transactions={transactions ?? []} physical={physical ?? []} investments={investments ?? []} onSyncBalances={syncBalances} onImportCSV={importCSV} fetchAllTransactions={fetchAllTransactions} />;      
+      case 1: return <MoneyTab accounts={accounts} transactions={transactions} onRefresh={fetchAll} />;
       case 2: return <AddTab accounts={accounts} onAdd={fetchAll} />;
       case 3: return <GymTab physical={physical} onOpenModal={() => setIsActivityModalOpen(true)} />;      
       case 4: return <InvestTab investments={investments} onAdd={fetchAll} />;
@@ -2491,5 +2620,7 @@ const importCSV = useCallback((csvText) => {
         ))}
       </nav>
       </div>
+
+      
   );
 }

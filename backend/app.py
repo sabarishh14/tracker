@@ -5,6 +5,7 @@ import pandas as pd
 import os
 from datetime import datetime, date
 import json
+import pytz # <-- Add this line
 import requests
 import hashlib
 import csv 
@@ -601,7 +602,9 @@ def sync_kite_direct():
         return jsonify({"success": False, "message": "Kite API credentials not configured"})
 
     try:
-        today_date = datetime.now().date()
+        # Force the server to calculate "today" based on Indian Standard Time
+        ist_timezone = pytz.timezone('Asia/Kolkata')
+        today_date = datetime.now(ist_timezone).date()
         
         # 1. Check if already synced today to prevent duplicates
         if Investment.query.filter_by(date=today_date).first():

@@ -191,12 +191,6 @@ function doPost(e) {
         message: `${inserted} transactions inserted`
       })).setMimeType(ContentService.MimeType.JSON);
     }
-
-      return ContentService.createTextOutput(JSON.stringify({
-        status: "success", 
-        message: `${inserted} transactions inserted`
-      })).setMimeType(ContentService.MimeType.JSON);
-    } 
     
     // --- INVESTMENTS LOGIC ---
     else if (type === "investments") {

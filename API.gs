@@ -92,8 +92,9 @@ function doPost(e) {
     const records = Array.isArray(data) ? data : [data];
 
     // --- TRANSACTIONS LOGIC ---
+    // --- TRANSACTIONS LOGIC ---
     if (type === "transactions") {
-      let errors = []; // Keep track of missing sheets
+      let errors = [];
       let inserted = 0;
 
       records.forEach(tx => {
@@ -111,38 +112,85 @@ function doPost(e) {
 
         const sheet = ss.getSheetByName(sheetName);
         if (!sheet) {
-          errors.push(sheetName); // Log the missing sheet
-          return; // Skip this one, but continue the loop
+          errors.push(sheetName);
+          return; 
+        }
+
+        const txDate = new Date(date);
+        txDate.setHours(0, 0, 0, 0);
+
+        const lastUsed = sheet.getLastRow();
+        let insertRow = lastUsed + 1; // Default to appending at the bottom
+
+        // 1. Find chronological insertion point
+        if (lastUsed >= 2) {
+          const dateValues = sheet.getRange(2, 1, lastUsed - 1, 1).getValues();
+          for (let i = 0; i < dateValues.length; i++) {
+            const cellVal = dateValues[i][0];
+            if (!cellVal) continue;
+            
+            const cellDate = new Date(cellVal);
+            cellDate.setHours(0, 0, 0, 0);
+            
+            if (cellDate > txDate) {
+              insertRow = i + 2; 
+              break;
+            }
+          }
+        }
+
+        // 2. Insert row if it belongs in the middle
+        if (insertRow <= lastUsed) {
+          sheet.insertRowBefore(insertRow);
+        }
+
+        // 3. Insert the main data
+        sheet.getRange(insertRow, 1, 1, 8).setValues([[
+          new Date(date), month, type, heading, description, amount, id, createdAt
+        ]]);
+
+        // 4. Handle Formulas and maintain the balance chain!
+        const sourceRow = (insertRow > 2) ? insertRow - 1 : (lastUsed >= 2 ? insertRow + 1 : 0);
+
+        if (sheetName === "IDBI") {
+          if (sourceRow > 0) {
+            sheet.getRange(sourceRow, 7, 1, 2).copyTo(sheet.getRange(insertRow, 7, 1, 2));
+            // Repair the formula chain for the row that got pushed down
+            if (insertRow <= lastUsed) {
+              sheet.getRange(insertRow, 7, 1, 2).copyTo(sheet.getRange(insertRow + 1, 7, 1, 2));
+            }
+          }
+          sheet.getRange(insertRow, 9).setValue(account);
+        } else {
+          if (sourceRow > 0) {
+            sheet.getRange(sourceRow, 7).copyTo(sheet.getRange(insertRow, 7));
+            // Repair the formula chain for the row that got pushed down
+            if (insertRow <= lastUsed) {
+              sheet.getRange(insertRow, 7).copyTo(sheet.getRange(insertRow + 1, 7));
+            }
+          }
+          sheet.getRange(insertRow, 8).setValue(account);
         }
 
         inserted++;
-        const lastUsed = sheet.getLastRow();
-        const colA = sheet.getRange(1, 1, lastUsed).getValues();
-        let lastRow = 0;
-        for (let i = colA.length - 1; i >= 0; i--) {
-          if (colA[i][0] !== "") { lastRow = i + 1; break; }
-        }
 
-        const newRow = lastRow + 1;
-        sheet.getRange(newRow, 1, 1, 8).setValues([[new Date(date), month, type, heading, description, amount, id, createdAt]]);
-
-        if (sheetName === "IDBI") {
-          sheet.getRange(lastRow, 7).copyTo(sheet.getRange(newRow, 7));
-          sheet.getRange(lastRow, 8).copyTo(sheet.getRange(newRow, 8));
-          sheet.getRange(newRow, 9).setValue(account);
-        } else {
-          sheet.getRange(lastRow, 7).copyTo(sheet.getRange(newRow, 7));
-          sheet.getRange(newRow, 8).setValue(account);
-        }
+        // 5. CRITICAL: Force the sheet to update immediately so the next loop cycle calculates rows properly
+        SpreadsheetApp.flush();
       });
+
       if (errors.length > 0) {
-        // Return a partial success message warning you which accounts failed
         const uniqueErrors = [...new Set(errors)].join(", ");
         return ContentService.createTextOutput(JSON.stringify({
           status: "success", 
           message: `${inserted} inserted. Skipped missing sheets: ${uniqueErrors}`
         })).setMimeType(ContentService.MimeType.JSON);
       }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success", 
+        message: `${inserted} transactions inserted`
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
 
       return ContentService.createTextOutput(JSON.stringify({
         status: "success", 

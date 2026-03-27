@@ -314,8 +314,8 @@ function HomeTab({ accounts, transactions, physical, investments, onSyncBalances
   const income = {}, expense = {};
   accounts.forEach(a => { income[a.account] = 0; expense[a.account] = 0; });
   moneyTransactions.forEach(t => {
-    if (t.type === 'credit') income[t.account] = (income[t.account] || 0) + parseFloat(t.amount);
-    if (t.type === 'debit') expense[t.account] = (expense[t.account] || 0) + parseFloat(t.amount);
+    if (t.type === 'Credit') income[t.account] = (income[t.account] || 0) + parseFloat(t.amount);
+    if (t.type === 'Debit') expense[t.account] = (expense[t.account] || 0) + parseFloat(t.amount);
   });
 
   return (
@@ -1201,20 +1201,20 @@ function MoneyTab({ accounts, transactions, onRefresh }) {
                   <div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: '0.5rem' }}>Income Txns</div>
                     <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--pos)' }}>
-                      {analyzerFiltered.filter(t => t.type === 'credit').length}
+                      {analyzerFiltered.filter(t => t.type === 'Credit').length}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text2)', marginTop: '0.25rem' }}>
-                      {fmt(analyzerFiltered.filter(t => t.type === 'credit').reduce((s, t) => s + parseFloat(t.amount || 0), 0))}
+                      {fmt(analyzerFiltered.filter(t => t.type === 'Credit').reduce((s, t) => s + parseFloat(t.amount || 0), 0))}
                     </div>
                   </div>
                   <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
                   <div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: '0.5rem' }}>Expense Txns</div>
                     <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--neg)' }}>
-                      {analyzerFiltered.filter(t => t.type === 'debit').length}
+                      {analyzerFiltered.filter(t => t.type === 'Debit').length}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text2)', marginTop: '0.25rem' }}>
-                      {fmt(analyzerFiltered.filter(t => t.type === 'debit').reduce((s, t) => s + parseFloat(t.amount || 0), 0))}
+                      {fmt(analyzerFiltered.filter(t => t.type === 'Debit').reduce((s, t) => s + parseFloat(t.amount || 0), 0))}
                     </div>
                   </div>
                 </div>
@@ -1316,9 +1316,9 @@ function MoneyTab({ accounts, transactions, onRefresh }) {
                 Page <strong style={{ color: 'var(--text)' }}>{currentPage + 1} of {totalPages}</strong> · Showing <strong style={{ color: 'var(--text)' }}>{paginatedRows.length}</strong> of {tableFiltered.length} transactions
               </span>
               <span>
-                <span className="pos" style={{ fontWeight: 600 }}>{fmt(tableFiltered.filter(t => t.type === 'credit').reduce((s, t) => s + parseFloat(t.amount || 0), 0))}</span>
+                <span className="pos" style={{ fontWeight: 600 }}>{fmt(tableFiltered.filter(t => t.type === 'Credit').reduce((s, t) => s + parseFloat(t.amount || 0), 0))}</span>
                 {' '}in &nbsp;·&nbsp; 
-                <span className="neg" style={{ fontWeight: 600 }}>{fmt(tableFiltered.filter(t => t.type === 'debit').reduce((s, t) => s + parseFloat(t.amount || 0), 0))}</span>
+                <span className="neg" style={{ fontWeight: 600 }}>{fmt(tableFiltered.filter(t => t.type === 'Debit').reduce((s, t) => s + parseFloat(t.amount || 0), 0))}</span>
                 {' '}out
               </span>
             </div>
@@ -1460,8 +1460,8 @@ function MoneyTab({ accounts, transactions, onRefresh }) {
                   </span>
                   <span className="tx-type-cell"><span className={`tx-badge ${t.type}`}>{t.type.charAt(0).toUpperCase() + t.type.slice(1)}</span></span>
                   <span className="tx-month">{monthLabel}</span>
-                  <span className={`tx-amount ${t.type === 'debit' ? 'neg' : t.type === 'credit' ? 'pos' : t.type === 'investment' ? 'blue-text' : 'accent'}`}>
-                    {t.type === 'debit' ? '−' : '+'}{fmt(t.amount)}
+                  <span className={`tx-amount ${t.type === 'Debit' ? 'neg' : t.type === 'Credit' ? 'pos' : t.type === 'investment' ? 'blue-text' : 'accent'}`}>
+                    {t.type === 'Debit' ? '−' : '+'}{fmt(t.amount)}
                   </span>
                   <span className="tx-heading">{t.heading}</span>
                   <span className="tx-desc">{t.description || '—'}</span>
@@ -1586,7 +1586,7 @@ function AddTransactionModal({ accounts, transactions, onAdd, onClose }) {
     id: Date.now() + Math.random(), // unique ID for React mapping
     account: 'KOTAK', 
     date: today, 
-    type: 'debit', 
+    type: 'Debit', 
     heading: '', 
     description: '', 
     amount: ''
@@ -2556,7 +2556,7 @@ const importCSV = useCallback((csvText) => {
     const amount = parseFloat(col(row, 'amount').replace(/,/g, '')) || 0;
 
     // Type: normalise to lowercase
-    const type = col(row, 'debit').toLowerCase(); // header is "Debit/Credit"
+    const type = col(row, 'Debit').toLowerCase(); // header is "Debit/Credit"
 
     return {
       date: isoDate,

@@ -448,9 +448,9 @@ def add_transaction():
             
             # Only update if the account exists and has balance tracking enabled (except CC-PINNACLE 6360)
             if account_record and account_record.balance_tracked and acc_name != "CC-PINNACLE 6360":
-                if tx_type == 'credit':
+                if tx_type == 'Credit':
                     account_record.balance += amount
-                elif tx_type in ['debit', 'savings']:
+                elif tx_type in ['Debit', 'Savings']:
                     account_record.balance -= amount
                     
             added_count += 1
@@ -464,7 +464,7 @@ def add_transaction():
         return jsonify({"success": False, "message": str(e)})
     
 @app.route('/api/transactions/<int:tid>', methods=['DELETE'])
-@require_api_key  # <-- Add this line to protect the route
+@require_api_key  
 def delete_transaction(tid):
     tx = Transaction.query.filter_by(id=tid).first()
 
@@ -476,8 +476,10 @@ def delete_transaction(tid):
     if account and account.balance_tracked and tx.account != "CC-PINNACLE 6360":
         if tx.type.lower() == "credit":
             account.balance -= tx.amount
-        elif tx.type.lower() == "debit":
+        elif tx.type.lower() in ["debit", "savings"]:
             account.balance += tx.amount
+
+    # --- THIS MATCHES BLOCK 2 IN YOUR APPS SCRIPT ---
     try:
         payload = {
             "type": "delete_transaction",
@@ -489,6 +491,7 @@ def delete_transaction(tid):
         requests.post(SHEETS_URL, json=payload, timeout=5)
     except Exception as e:
         print("Failed to sync delete to sheets:", e)
+    # ------------------------------------------------
 
     db.session.delete(tx)
     db.session.commit()
@@ -508,9 +511,9 @@ def edit_transaction(tid):
         # 1. REVERT the old transaction's impact on the balance
         old_account = Account.query.filter_by(account=tx.account).first()
         if old_account and old_account.balance_tracked and tx.account != "CC-PINNACLE 6360":
-            if tx.type == 'credit':
+            if tx.type == 'Credit':
                 old_account.balance -= tx.amount
-            elif tx.type in ['debit', 'savings']:
+            elif tx.type in ['Debit', 'Savings']:
                 old_account.balance += tx.amount
 
         # 2. UPDATE the transaction fields
@@ -529,9 +532,9 @@ def edit_transaction(tid):
         # 3. APPLY the new transaction's impact on the balance
         new_account = Account.query.filter_by(account=tx.account).first()
         if new_account and new_account.balance_tracked and tx.account != "CC-PINNACLE 6360":
-            if tx.type == 'credit':
+            if tx.type == 'Credit':
                 new_account.balance += tx.amount
-            elif tx.type in ['debit', 'savings']:
+            elif tx.type in ['Debit', 'Savings']:
                 new_account.balance -= tx.amount
 
         db.session.commit()
@@ -562,9 +565,9 @@ def bulk_edit_transactions():
             # 1. REVERT the old transaction's impact on the balance
             old_account = Account.query.filter_by(account=tx.account).first()
             if old_account and old_account.balance_tracked and tx.account != "CC-PINNACLE 6360":
-                if tx.type == 'credit':
+                if tx.type == 'Credit':
                     old_account.balance -= tx.amount
-                elif tx.type in ['debit', 'savings']:
+                elif tx.type in ['Debit', 'Savings']:
                     old_account.balance += tx.amount
 
             # 2. UPDATE the transaction fields
@@ -587,9 +590,9 @@ def bulk_edit_transactions():
             # 3. APPLY the new transaction's impact on the balance
             new_account = Account.query.filter_by(account=tx.account).first()
             if new_account and new_account.balance_tracked and tx.account != "CC-PINNACLE 6360":
-                if tx.type == 'credit':
+                if tx.type == 'Credit':
                     new_account.balance += tx.amount
-                elif tx.type in ['debit', 'savings']:
+                elif tx.type in ['Debit', 'Savings']:
                     new_account.balance -= tx.amount
             
             updated_count += 1

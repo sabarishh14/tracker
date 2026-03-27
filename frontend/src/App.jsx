@@ -1681,9 +1681,9 @@ function AddTransactionModal({ accounts, transactions, onAdd, onClose }) {
               <input type="date" className="bulk-inp" value={row.date} onChange={e => updateRow(row.id, 'date', e.target.value)} />
               
               <select className="bulk-sel" value={row.type} onChange={e => updateRow(row.id, 'type', e.target.value)}>
-                <option value="debit">🔴 Debit</option>
-                <option value="credit">🟢 Credit</option>
-                <option value="savings">💰 Savings</option>
+                <option value="Debit">🔴 Debit</option>
+                <option value="Credit">🟢 Credit</option>
+                <option value="Savings">💰 Savings</option>
               </select>
 
               {/* Using a datalist for category autocomplete without messy z-index dropdowns in a grid */}
@@ -1803,9 +1803,9 @@ function EditTransactionModal({ tx, onClose, onRefresh }) {
             <div className="form-group">
               <label style={{ fontSize: '0.75rem', color: 'var(--text2)', marginBottom: '4px' }}>Type</label>
               <select className="bulk-sel" style={{ background: 'var(--bg3)', padding: '0.75rem' }} value={form.type} onChange={e => updateField('type', e.target.value)}>
-                <option value="debit">🔴 Debit</option>
-                <option value="credit">🟢 Credit</option>
-                <option value="savings">💰 Savings</option>
+                <option value="Debit">🔴 Debit</option>
+                <option value="Credit">🟢 Credit</option>
+                <option value="Savings">💰 Savings</option>
               </select>
             </div>
 
@@ -1898,9 +1898,9 @@ function BulkEditTransactionModal({ transactions, onClose, onRefresh }) {
               </select>
               <input type="date" className="bulk-inp" value={row.date} onChange={e => updateRow(row.id, 'date', e.target.value)} />
               <select className="bulk-sel" value={row.type} onChange={e => updateRow(row.id, 'type', e.target.value)}>
-                <option value="debit">🔴 Debit</option>
-                <option value="credit">🟢 Credit</option>
-                <option value="savings">💰 Savings</option>
+                <option value="Debit">🔴 Debit</option>
+                <option value="Credit">🟢 Credit</option>
+                <option value="Savings">💰 Savings</option>
               </select>
               <AutocompleteInput value={row.heading} onChange={val => updateRow(row.id, 'heading', val)} options={CATEGORIES} placeholder="Category" />
               <input type="number" className="bulk-inp" placeholder="0.00" value={row.amount} onChange={e => updateRow(row.id, 'amount', e.target.value)} />
@@ -2331,7 +2331,7 @@ export default function App() {
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   
   // --- Sidebar Resizing Logic ---
-  const [sidebarWidth, setSidebarWidth] = useState(280); 
+  const [sidebarWidth, setSidebarWidth] = useState(70); 
   const [isResizing, setIsResizing] = useState(false);
 
   // --- Theme Logic ---

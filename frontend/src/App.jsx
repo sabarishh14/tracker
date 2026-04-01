@@ -52,11 +52,47 @@ const getBankEmoji = (accountName) => {
 };
 
 const CATEGORIES = [
-  "Aasai","Annual Fee","Card Fees","Charges","Cinema","Clothing","Daily Need",
-  "Donation","Education","Entertainment","FD","Food","Fruits","God","Haircut",
-  "Income","Interest","Investment","Kudremukh Trip","Laundry","Loan","Medical",
-  "Msc","Parking","Petrol","Popcorn","Salary","Savings","Snacks","Spotify",
-  "Tally","Test","Tips","Transport","Travel","Veggies"
+  "Aasai",
+  "Card Fees",
+  "Charges",
+  "Cinema",
+  "Clothing",
+  "CBE Trip",
+  "Daily Need",
+  "Donation",
+  "Education",
+  "Electricity",
+  "Entertainment",
+  "FD",
+  "Flowers",
+  "Food",
+  "Fruits",
+  "God",
+  "Grocery",
+  "Haircut",
+  "Income",
+  "Interest",
+  "Internet",
+  "Investment",
+  "Kudremukh Trip",
+  "Laundry",
+  "Loan",
+  "Locker",
+  "Medical",
+  "Msc",
+  "Parking",
+  "Petrol",
+  "Popcorn",
+  "Savings",
+  "Snacks",
+  "Spotify",
+  "Sports",
+  "Tally",
+  "Test",
+  "Tips",
+  "Transport",
+  "Veggies",
+  "YT Premium"
 ];
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -1576,7 +1612,7 @@ function AddTransactionModal({ accounts, transactions, onAdd, onClose }) {
   
   const recentDescriptions = [...new Set(
     (transactions || [])
-      .slice(0, 100)
+      .slice(0, 200)
       .map(t => t.description)
       .filter(desc => desc && desc.trim() !== '')
   )];

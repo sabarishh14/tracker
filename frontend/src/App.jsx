@@ -1620,12 +1620,6 @@ function AddTransactionModal({ accounts, transactions, onAdd, onClose }) {
       .filter(desc => desc && desc.trim() !== '')
   )];
 
-  // Get all unique types from transactions, with sensible defaults if empty
-  const allTransactionTypes = useMemo(() => {
-    const types = [...new Set((transactions || []).map(t => t.type).filter(Boolean))];
-    return types.length > 0 ? types.sort() : ['Debit', 'Credit', 'Savings'];
-  }, [transactions]);
-
   // Create a factory for a fresh row
   const createEmptyRow = () => ({
     id: Date.now() + Math.random(), // unique ID for React mapping
@@ -1731,7 +1725,10 @@ function AddTransactionModal({ accounts, transactions, onAdd, onClose }) {
               <input type="date" className="bulk-inp" value={row.date} onChange={e => updateRow(row.id, 'date', e.target.value)} />
               
               <select className="bulk-sel" value={row.type} onChange={e => updateRow(row.id, 'type', e.target.value)}>
-                {allTransactionTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                <option value="Debit">🔴 Debit</option>
+                <option value="Credit">🟢 Credit</option>
+                <option value="Savings">💰 Savings</option>
+                <option value="Investment">💸 Investment</option>
               </select>
 
               {/* Using a datalist for category autocomplete without messy z-index dropdowns in a grid */}
@@ -1854,6 +1851,7 @@ function EditTransactionModal({ tx, onClose, onRefresh }) {
                 <option value="Debit">🔴 Debit</option>
                 <option value="Credit">🟢 Credit</option>
                 <option value="Savings">💰 Savings</option>
+                <option value="Investment">💸 Investment</option>
               </select>
             </div>
 
@@ -1949,6 +1947,7 @@ function BulkEditTransactionModal({ transactions, onClose, onRefresh }) {
                 <option value="Debit">🔴 Debit</option>
                 <option value="Credit">🟢 Credit</option>
                 <option value="Savings">💰 Savings</option>
+                <option value="Investment">💸 Investment</option>
               </select>
               <AutocompleteInput value={row.heading} onChange={val => updateRow(row.id, 'heading', val)} options={CATEGORIES} placeholder="Category" />
               <input type="number" className="bulk-inp" placeholder="0.00" value={row.amount} onChange={e => updateRow(row.id, 'amount', e.target.value)} />

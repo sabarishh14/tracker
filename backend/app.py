@@ -237,7 +237,7 @@ def check_tx_sync():
 def sync_db_to_sheets():
     try:
         # 1. Fetch only transactions that haven't been synced yet
-        unsynced = Transaction.query.filter_by(synced=False).order_by(Transaction.date.asc()).all()
+        unsynced = Transaction.query.filter_by(synced=False).order_by(Transaction.date.asc(), Transaction.id.asc()).all()
         
         if not unsynced:
             return jsonify({"success": True, "message": "No new transactions to sync to Sheets."})

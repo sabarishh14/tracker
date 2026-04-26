@@ -693,7 +693,9 @@ function MoneyTab({ accounts, transactions, onRefresh }) {
 
     const pieData = {};
     filtered.forEach(t => { 
-      pieData[t.heading] = (pieData[t.heading] || 0) + Math.abs(parseFloat(t.amount)); 
+      // Group by description if available, otherwise fall back to category heading
+      const key = (t.description && t.description.trim() !== '') ? t.description.trim() : t.heading;
+      pieData[key] = (pieData[key] || 0) + Math.abs(parseFloat(t.amount)); 
     });
     const pieArray = Object.entries(pieData).map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value);
     
@@ -1141,8 +1143,9 @@ function MoneyTab({ accounts, transactions, onRefresh }) {
                       const total = pieArr.reduce((s, x) => s + x.value, 0);
                       const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : '0';
                       
-                      // Check if this category is currently active in the table filters
-                      const isSelected = filterHeadings.has(d.name);
+                     // Check if it's a heading or description to highlight it correctly
+                      const isHeading = allHeadings.includes(d.name);
+                      const isSelected = isHeading ? filterHeadings.has(d.name) : filterDesc === d.name;
                       
                       return (
                         <div 
@@ -1176,11 +1179,16 @@ function MoneyTab({ accounts, transactions, onRefresh }) {
                           }}
                           onClick={() => {
                             if (isSelected) {
-                              // Toggle off if already selected
-                              setFilterHeadings(new Set());
+                              if (isHeading) setFilterHeadings(new Set());
+                              else setFilterDesc("");
                             } else {
-                              // Set filter and sync scope
-                              setFilterHeadings(new Set([d.name]));
+                              if (isHeading) {
+                                setFilterHeadings(new Set([d.name]));
+                                setFilterDesc("");
+                              } else {
+                                setFilterDesc(d.name);
+                                setFilterHeadings(new Set());
+                              }
                               setFilterAccounts(new Set(chartAccounts));
                               setFilterTypes(new Set(chartTypes));
                               setFilterMonths(new Set(chartMonths));

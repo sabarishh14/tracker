@@ -607,7 +607,6 @@ function MoneyTab({ accounts, transactions, onRefresh }) {
   const [currentPage, setCurrentPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   
-  const [editingTx, setEditingTx] = useState(null);
   const [actionMenuTx, setActionMenuTx] = useState(null); // <-- ADD THIS NEW STATE
   
   /// Change actions: 90 to actions: 130

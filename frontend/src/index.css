@@ -687,22 +687,78 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cur
   .gym-layout, .invest-layout, .add-layout, .money-top { grid-template-columns: 1fr; }
   .gym-form-card, .invest-form-card { width: 100%; }
   
-  .tx-table-wrap, .data-table { 
-    overflow-x: auto; 
+  /* 🔥 Keep Gym/Invest tables horizontally scrollable */
+  .data-table { 
+    overflow-x: auto !important; 
     -webkit-overflow-scrolling: touch; 
   }
-  
-  /* Removed the broken row-width overrides here! */
-  
   .table-header, .table-row { 
     min-width: 850px; 
     width: 100%; 
   }
-  
-  .tx-desc, .tx-col-header:last-child { 
-    white-space: normal; 
-    line-height: 1.4; 
+
+  /* 📱 NATIVE-LIKE MOBILE TRANSACTION CARDS (Like Android App) */
+  .tx-table-wrap {
+    overflow-x: hidden !important; 
+    background: transparent !important;
+    border: none !important;
   }
+  
+  .tx-table-head { display: none !important; } /* Hide column headers */
+  
+  .tx-row {
+    display: grid !important;
+    /* Col 1: Checkbox, Col 2: Info Stack, Col 3: Amount/Desc Stack */
+    grid-template-columns: auto 1fr auto !important;
+    grid-template-rows: auto auto auto !important;
+    gap: 4px 12px !important;
+    padding: 1rem !important;
+    background: var(--card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 16px !important;
+    margin-bottom: 12px !important;
+    align-items: center;
+  }
+  
+  .tx-row:hover { background: var(--card2) !important; }
+  
+  /* Strip out desktop cell styling */
+  .tx-row > span { 
+    border: none !important; 
+    padding: 0 !important; 
+  }
+  
+  /* 1. Checkbox */
+  .tx-row > span:nth-child(1) { grid-column: 1; grid-row: 1 / span 3; }
+  
+  /* 7. Category Heading */
+  .tx-row > span:nth-child(7) { grid-column: 2; grid-row: 1; font-size: 1rem; font-weight: 700; color: var(--text); }
+  
+  /* 3. Account (Emoji + Name) */
+  .tx-row > span:nth-child(3) { grid-column: 2; grid-row: 2; font-size: 0.8rem; color: var(--text2); display: flex; align-items: center; gap: 4px; }
+  
+  /* 2. Date */
+  .tx-row > span:nth-child(2) { grid-column: 2; grid-row: 3; font-size: 0.75rem; color: var(--text3); }
+  
+  /* 6. Amount */
+  .tx-row > span:nth-child(6) { grid-column: 3; grid-row: 1; font-size: 1.15rem; font-weight: 700; justify-content: flex-end; }
+  
+  /* 8. Description (Truncated so it doesn't break the layout) */
+  .tx-row > span:nth-child(8) { 
+    grid-column: 3; grid-row: 2; 
+    font-size: 0.8rem; color: var(--text2); 
+    text-align: right; justify-content: flex-end; 
+    display: block; max-width: 140px; 
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
+  }
+  
+  /* 9. Actions (Edit / Delete) */
+  .tx-row > span:nth-child(9) { grid-column: 3; grid-row: 3; justify-content: flex-end; gap: 12px; margin-top: 4px; }
+  
+  /* Hide unnecessary desktop columns */
+  .tx-row > span:nth-child(4), /* Type badge */
+  .tx-row > span:nth-child(5)  /* Month string */
+  { display: none !important; }
 }
 
 @media (max-width: 768px) {
@@ -714,22 +770,78 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cur
   .topbar { padding: 0 1.25rem; height: 56px; }
   .topbar-title { font-size: 1rem; }
   
-  .tx-table-wrap, .data-table { 
-    overflow-x: auto; 
+  /* 🔥 Keep Gym/Invest tables horizontally scrollable */
+  .data-table { 
+    overflow-x: auto !important; 
     -webkit-overflow-scrolling: touch; 
   }
-  
-  /* Removed the broken row-width overrides here! */
-  
   .table-header, .table-row { 
     min-width: 850px; 
     width: 100%; 
   }
-  
-  .tx-desc, .tx-col-header:last-child { 
-    white-space: normal; 
-    line-height: 1.4; 
+
+  /* 📱 NATIVE-LIKE MOBILE TRANSACTION CARDS (Like Android App) */
+  .tx-table-wrap {
+    overflow-x: hidden !important; 
+    background: transparent !important;
+    border: none !important;
   }
+  
+  .tx-table-head { display: none !important; } /* Hide column headers */
+  
+  .tx-row {
+    display: grid !important;
+    /* Col 1: Checkbox, Col 2: Info Stack, Col 3: Amount/Desc Stack */
+    grid-template-columns: auto 1fr auto !important;
+    grid-template-rows: auto auto auto !important;
+    gap: 4px 12px !important;
+    padding: 1rem !important;
+    background: var(--card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 16px !important;
+    margin-bottom: 12px !important;
+    align-items: center;
+  }
+  
+  .tx-row:hover { background: var(--card2) !important; }
+  
+  /* Strip out desktop cell styling */
+  .tx-row > span { 
+    border: none !important; 
+    padding: 0 !important; 
+  }
+  
+  /* 1. Checkbox */
+  .tx-row > span:nth-child(1) { grid-column: 1; grid-row: 1 / span 3; }
+  
+  /* 7. Category Heading */
+  .tx-row > span:nth-child(7) { grid-column: 2; grid-row: 1; font-size: 1rem; font-weight: 700; color: var(--text); }
+  
+  /* 3. Account (Emoji + Name) */
+  .tx-row > span:nth-child(3) { grid-column: 2; grid-row: 2; font-size: 0.8rem; color: var(--text2); display: flex; align-items: center; gap: 4px; }
+  
+  /* 2. Date */
+  .tx-row > span:nth-child(2) { grid-column: 2; grid-row: 3; font-size: 0.75rem; color: var(--text3); }
+  
+  /* 6. Amount */
+  .tx-row > span:nth-child(6) { grid-column: 3; grid-row: 1; font-size: 1.15rem; font-weight: 700; justify-content: flex-end; }
+  
+  /* 8. Description (Truncated so it doesn't break the layout) */
+  .tx-row > span:nth-child(8) { 
+    grid-column: 3; grid-row: 2; 
+    font-size: 0.8rem; color: var(--text2); 
+    text-align: right; justify-content: flex-end; 
+    display: block; max-width: 140px; 
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
+  }
+  
+  /* 9. Actions (Edit / Delete) */
+  .tx-row > span:nth-child(9) { grid-column: 3; grid-row: 3; justify-content: flex-end; gap: 12px; margin-top: 4px; }
+  
+  /* Hide unnecessary desktop columns */
+  .tx-row > span:nth-child(4), /* Type badge */
+  .tx-row > span:nth-child(5)  /* Month string */
+  { display: none !important; }
   
 /* 📱 Clean Mobile Filter Grid */
   .filter-bar { 

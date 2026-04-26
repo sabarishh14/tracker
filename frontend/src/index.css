@@ -780,7 +780,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cur
     width: 100%; 
   }
 
-  /* 📱 NATIVE-LIKE MOBILE TRANSACTION CARDS (Like Android App) */
+ /* 📱 NATIVE-LIKE MOBILE TRANSACTION CARDS (Like Android App) */
   .tx-table-wrap {
     overflow-x: hidden !important; 
     background: transparent !important;
@@ -801,27 +801,32 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cur
     border-radius: 16px !important;
     margin-bottom: 12px !important;
     align-items: center;
+
+    /* 🔥 THE FIX: Override the 1220px desktop width so it fits on mobile! */
+    min-width: 0 !important;
+    width: 100% !important;
   }
   
   .tx-row:hover { background: var(--card2) !important; }
   
-  /* Strip out desktop cell styling */
+  /* Strip out desktop cell styling and force flex for alignment */
   .tx-row > span { 
     border: none !important; 
     padding: 0 !important; 
+    display: flex !important;
   }
   
   /* 1. Checkbox */
   .tx-row > span:nth-child(1) { grid-column: 1; grid-row: 1 / span 3; }
   
   /* 7. Category Heading */
-  .tx-row > span:nth-child(7) { grid-column: 2; grid-row: 1; font-size: 1rem; font-weight: 700; color: var(--text); }
+  .tx-row > span:nth-child(7) { grid-column: 2; grid-row: 1; font-size: 1rem; font-weight: 700; color: var(--text); justify-content: flex-start; }
   
   /* 3. Account (Emoji + Name) */
-  .tx-row > span:nth-child(3) { grid-column: 2; grid-row: 2; font-size: 0.8rem; color: var(--text2); display: flex; align-items: center; gap: 4px; }
+  .tx-row > span:nth-child(3) { grid-column: 2; grid-row: 2; font-size: 0.8rem; color: var(--text2); align-items: center; gap: 4px; justify-content: flex-start; }
   
   /* 2. Date */
-  .tx-row > span:nth-child(2) { grid-column: 2; grid-row: 3; font-size: 0.75rem; color: var(--text3); }
+  .tx-row > span:nth-child(2) { grid-column: 2; grid-row: 3; font-size: 0.75rem; color: var(--text3); justify-content: flex-start; }
   
   /* 6. Amount */
   .tx-row > span:nth-child(6) { grid-column: 3; grid-row: 1; font-size: 1.15rem; font-weight: 700; justify-content: flex-end; }
@@ -830,8 +835,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cur
   .tx-row > span:nth-child(8) { 
     grid-column: 3; grid-row: 2; 
     font-size: 0.8rem; color: var(--text2); 
-    text-align: right; justify-content: flex-end; 
-    display: block; max-width: 140px; 
+    text-align: right; 
+    max-width: 130px; 
+    display: block !important; /* Block is required for ellipsis to work */
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
   }
   

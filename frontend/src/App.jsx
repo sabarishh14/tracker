@@ -569,7 +569,7 @@ function MoneyTab({ accounts, transactions, onRefresh }) {
 
   // Analyzer filters - multi-select
   const [chartAccounts, setChartAccounts] = useState(new Set());
-  const [chartTypes, setChartTypes] = useState(new Set());
+  const [chartTypes, setChartTypes] = useState(new Set(['Debit'])); // Defaults to Debit
   const [chartMonths, setChartMonths] = useState(new Set([currentMonthLabel]));
   const [chartHeadings, setChartHeadings] = useState(new Set());
 
@@ -1674,6 +1674,19 @@ function AddTransactionModal({ accounts, transactions, onAdd, onClose }) {
     setRows(rows.filter(r => r.id !== id));
   };
 
+  const handleClose = () => {
+    // Check if the user has typed anything into any of the rows
+    const isDirty = rows.some(r => r.amount !== '' || r.heading !== '' || r.description !== '');
+    
+    if (isDirty) {
+      if (window.confirm("You have unsaved transactions. Are you sure you want to discard them?")) {
+        onClose();
+      }
+    } else {
+      onClose(); // Close instantly if the form is empty
+    }
+  };
+
   const submit = async () => {
     // Basic validation: ensure all rows have an amount and heading
     for (let i = 0; i < rows.length; i++) {
@@ -1714,11 +1727,13 @@ function AddTransactionModal({ accounts, transactions, onAdd, onClose }) {
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    // REPLACE onClose with handleClose here ⬇️
+    <div className="modal-backdrop" onClick={handleClose}> 
       <div className="modal-content bulk-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title">📝 Log Transactions</div>
-          <button className="modal-close" onClick={onClose}>×</button>
+          {/* REPLACE onClose with handleClose here ⬇️ */}
+          <button className="modal-close" onClick={handleClose}>×</button> 
         </div>
         
         {/* We removed the huge padding, and added a sensible minHeight so the first row has room to breathe */}

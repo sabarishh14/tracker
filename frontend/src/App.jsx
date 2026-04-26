@@ -413,7 +413,18 @@ function HomeTab({ accounts, transactions, physical, investments, onSyncBalances
         <h2 className="section-title">🏦 Account Balances</h2>
         <div className="accounts-grid">
           {accounts
-            .filter(a => a.balance_tracked && a.account !== 'CC-PINNACLE 6360' && a.account !== 'Cash') // <-- tracks balance and hides PINNACLE
+            .filter(a => a.balance_tracked && a.account !== 'CC-PINNACLE 6360')
+            .sort((a, b) => {
+              // Sort them strictly by the order defined in the BANKS object
+              const orderA = Object.keys(BANKS).indexOf(a.account);
+              const orderB = Object.keys(BANKS).indexOf(b.account);
+              
+              // If an account isn't in the BANKS list, push it to the very end
+              const indexA = orderA === -1 ? 999 : orderA;
+              const indexB = orderB === -1 ? 999 : orderB;
+              
+              return indexA - indexB;
+            })
             .map(a => (
               <div
                 className="account-card"

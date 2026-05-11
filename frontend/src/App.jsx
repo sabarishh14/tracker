@@ -1709,7 +1709,6 @@ function AddTransactionModal({ accounts, transactions, onAdd, onClose }) {
   
   const recentDescriptions = [...new Set(
     (transactions || [])
-      .slice(0, 200)
       .map(t => t.description)
       .filter(desc => desc && desc.trim() !== '')
   )];
